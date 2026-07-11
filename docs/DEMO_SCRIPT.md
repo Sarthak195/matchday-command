@@ -1,0 +1,19 @@
+# 3-minute demo script
+
+The scripted scenario in `src/lib/simulator/scenario.ts` **is** this demo. If you change one, change the other.
+
+**0:00 — Set the scene (15s).** "Every stadium AI you'll see today talks to fans. This one sits in the control room. Meridian Arena, 52,000 seats, gates just opened."
+
+**0:15 — Show the pulse (30s).** Dashboard live: gates flowing, zones green, radio ticker scrolling. Point out this is a full match-day simulation — no hardware needed, fully reproducible.
+
+**0:45 — First incident (60s).** Fast-forward to 28': Gate C queue hits 420 and a steward radios that scanners are slow. An incident auto-opens. Click **Triage** → Gemini returns severity, a rationale that cites *both* the queue numbers and the radio message, and prioritized actions ("redirect to Gate D", "stewarding channel, priority 1"). Emphasize: structured output, grounded only in the telemetry shown on screen.
+
+**1:45 — Compounding pressure (45s).** 41': North Concourse density 89% → second incident. 68': medical call in Block 12 mid-match. Show the incident queue ranking by severity — this is the drowning-in-signals moment the tool exists for.
+
+**2:30 — The payoff (30s).** Click **Generate briefing**: Gemini writes the ops-room situation report — open incidents, watch items (storm cell inbound at 75'), crowd outlook for halftime. "This document is what a duty manager writes by hand today. Judges, refresh the page — it's live on Cloud Run."
+
+## Judge Q&A ammo
+
+- *Why simulated data?* Real stadium telemetry isn't accessible to a solo student in a two-week sprint; the simulator makes the demo deterministic and the architecture is sensor-agnostic — the SSE contract is the integration point.
+- *Why not a fan app?* Crowded space (see StadiumIQ and Google's own World Cup tools). Ops is underserved and matches the theme's second half: *tournament operations*.
+- *What's genuinely AI here?* Unstructured radio logs + numeric telemetry fused into one triage judgment, and briefing prose generation — both things rules alone can't do.
