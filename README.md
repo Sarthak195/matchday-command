@@ -37,7 +37,7 @@ flowchart LR
     STORE --> GEMINI
 ```
 
-Everything shares one vocabulary: the types in [`src/shared/models/`](src/shared/models/) define events, incidents, briefings, and the SSE wire protocol — used by the simulator, the API routes, and the UI alike. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full design.
+Everything shares one vocabulary: the types in [`src/shared/models/`](src/shared/models/) define events, incidents, briefings, and the SSE wire protocol — used by the simulator, the API routes, and the UI alike. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the design overview, and [`docs/agents/`](docs/agents/) (entrypoint: [`AGENTS.md`](AGENTS.md)) for the extensive documentation set — architecture, domain models, simulation, AI layer, frontend, full API reference, infrastructure, and conventions.
 
 ## Tech stack
 

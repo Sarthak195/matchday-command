@@ -2,6 +2,8 @@
 
 AI incident command copilot for stadium/tournament operations. Solo entry for **Google PromptWars** (theme: Smart Stadiums & Tournament Operations, July 2026). Judged as a "vibe coding" competition: working deployed demo > breadth. Differentiator vs. other entries: ops-room copilot, **not** a fan chatbot.
 
+**Deep agent docs live in [`AGENTS.md`](AGENTS.md) → [`docs/agents/`](docs/agents/)** (architecture, domain models, simulation, AI layer, frontend, API reference, infrastructure, conventions/gotchas, product context). This file stays the compact quick-reference; consult the deep docs before non-trivial changes.
+
 ## Commands
 
 - `npm run dev` — dev server on :3000
