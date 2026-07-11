@@ -10,7 +10,7 @@ Built solo for **Google PromptWars** (theme: Smart Stadiums & Tournament Operati
 
 Running 104 World Cup matches across 16 stadiums pushed real tournaments toward digital twins and predictive crowd management. The expensive part isn't the sensors — it's the human bottleneck: an ops room drowning in radio chatter and dashboards, making judgment calls under pressure. MatchDay Command demonstrates that a well-prompted LLM can carry the cognitive load: *cluster the noise into incidents, explain the risk, propose the next action, and write it all down.*
 
-The app has **two personas**: an **ops control room** (`/`) for the duty manager, and a **staff console** (`/staff`) for floor teams who receive dispatched tasks.
+The app has **three views on one shared live match**: the **ops control room** (`/`), the **staff console** (`/staff`), and the **tournament supervisor** (`/tournament`). One server-side simulation broadcasts to every client — all screens show the same clock and story, and sim controls (speed / next-beat / restart) are global.
 
 ## What it does
 
@@ -23,6 +23,8 @@ The app has **two personas**: an **ops control room** (`/`) for the duty manager
 7. **Control-room copilot (agentic)** — a chat that answers from live state *and takes actions via Gemini function calling*: "tell catering to start hot food prep" dispatches a real task to the staff console; it can also open incidents and trigger briefings.
 8. **Predictive early warnings** — trend projection over live telemetry warns *before* thresholds break: "North Concourse on track to hit 85% in ~9 min" — with one-click pre-emptive incident creation.
 9. **Voice radio reports** — push-to-talk (browser Web Speech API, keyless): a spoken steward report lands in the live feed and flows into AI triage like any other signal.
+10. **Tournament supervisor** — every venue on one wall: the live stadium plus sister venues with staggered kickoffs, aggregate incident counts, and a highest-pressure ranking.
+11. **Emergency mode** — a guarded red button flips the venue to evacuation posture: gates go exit-only, Gemini writes the zone-by-zone evacuation plan **and** the PA announcement, and work orders are auto-dispatched to every staff role.
 
 ## Architecture
 
@@ -93,6 +95,9 @@ gcloud run deploy matchday-command --source . --region asia-south1 \
 - [x] Agentic copilot chat (Gemini function calling → open incidents, dispatch tasks, briefings)
 - [x] Predictive early warnings (trend projection ahead of threshold breaches)
 - [x] Push-to-talk voice radio reports (Web Speech API)
+- [x] Shared live match state (one server-side sim, all views on the same clock, global controls)
+- [x] Tournament supervisor view (`/tournament`)
+- [x] Emergency mode (AI evacuation plan + PA text + auto-dispatched staff orders)
 
 ## License
 

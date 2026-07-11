@@ -7,3 +7,4 @@ export * from "./weather";
 export * from "./demand";
 export * from "./staff";
 export * from "./traffic";
+export * from "./emergency";

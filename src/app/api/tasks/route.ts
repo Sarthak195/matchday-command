@@ -15,7 +15,15 @@ const ROLES: StaffRole[] = [
   "logistics",
 ];
 
-const ORIGINS: TaskOrigin[] = ["incident", "demand", "weather", "traffic", "match", "copilot"];
+const ORIGINS: TaskOrigin[] = [
+  "incident",
+  "demand",
+  "weather",
+  "traffic",
+  "match",
+  "copilot",
+  "emergency",
+];
 
 /** The staff console polls this for tasks dispatched from the ops side. */
 export async function GET() {

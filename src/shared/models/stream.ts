@@ -20,4 +20,6 @@ export type StreamMessage =
   | { kind: "clock"; minute: number }
   | { kind: "event"; event: StadiumEvent }
   | { kind: "incident"; incident: Incident }
-  | { kind: "snapshot"; state: OpsSnapshot };
+  | { kind: "snapshot"; state: OpsSnapshot }
+  /** The shared match was restarted — clients must drop accumulated state. */
+  | { kind: "reset" };

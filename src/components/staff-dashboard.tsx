@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DEMO_VENUE, EXPECTED_ATTENDANCE, SIM_TICK_MS } from "@/shared/constants";
+import { DEMO_VENUE, EXPECTED_ATTENDANCE } from "@/shared/constants";
 import type {
   DemandPlan,
   Incident,
@@ -69,8 +69,7 @@ function roleForCategory(cat: Incident["category"]): StaffRole {
 }
 
 export default function StaffDashboard() {
-  const [tickMs, setTickMs] = useState(SIM_TICK_MS);
-  const { state, connected } = useMatchStream(tickMs, 0);
+  const { state, connected } = useMatchStream();
 
   const [forecast, setForecast] = useState<WeatherForecast | null>(null);
   const [demand, setDemand] = useState<{ plan: DemandPlan; tasks: StaffTask[] } | null>(null);
@@ -250,17 +249,6 @@ export default function StaffDashboard() {
             </span>
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-1.5 text-xs text-[#898781]">
-              Sim speed
-              <select
-                value={tickMs}
-                onChange={(e) => setTickMs(Number(e.target.value))}
-                className="rounded border border-white/10 bg-[#0d0d0d] px-2 py-1 text-xs text-white"
-              >
-                <option value={2000}>1×</option>
-                <option value={500}>4×</option>
-              </select>
-            </label>
             <button
               onClick={fetchDemand}
               disabled={demandBusy || !forecast}
@@ -414,12 +402,13 @@ function congestionColor(level: string): string {
 }
 
 const ORIGIN_COLOR: Record<StaffTask["origin"], string> = {
-  incident: STATUS.critical,
+  incident: STATUS.serious,
   weather: ACCENT,
   traffic: STATUS.warning,
   demand: STATUS.good,
   match: INK.muted,
   copilot: "#9085e9", // violet — ops-side AI dispatch
+  emergency: STATUS.critical,
 };
 
 function TaskCard({

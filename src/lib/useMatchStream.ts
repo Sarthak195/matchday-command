@@ -3,8 +3,8 @@
 import { useEffect, useReducer } from "react";
 import type { Incident, MatchPhase, StadiumEvent, StreamMessage, TriageResult } from "@/shared/models";
 
-/** Accumulated match-day state, rebuilt on the client from the SSE feed. Shared
- *  by the ops and staff dashboards via the useMatchStream hook. */
+/** Accumulated match-day state, rebuilt on the client from the shared SSE feed.
+ *  Used by the ops, staff, and tournament views via the useMatchStream hook. */
 export interface DashState {
   minute: number;
   phase: MatchPhase;
@@ -51,10 +51,16 @@ export function dashReducer(state: DashState, action: DashAction): DashState {
       };
     case "message": {
       const msg = action.msg;
+      if (msg.kind === "reset") return INITIAL;
       if (msg.kind === "clock") return { ...state, minute: msg.minute };
-      if (msg.kind === "incident") return { ...state, incidents: [msg.incident, ...state.incidents] };
+      if (msg.kind === "incident") {
+        // Catch-up bursts can replay history — dedupe by id.
+        if (state.incidents.some((i) => i.id === msg.incident.id)) return state;
+        return { ...state, incidents: [msg.incident, ...state.incidents] };
+      }
       if (msg.kind === "event") {
         const e = msg.event;
+        if (state.events.some((x) => x.id === e.id)) return state;
         const next: DashState = { ...state, events: [e, ...state.events].slice(0, 250) };
         if (e.type === "match") next.phase = e.phase === "goal" ? state.phase : e.phase;
         if (e.type === "crowd-density") {
@@ -74,17 +80,20 @@ export function dashReducer(state: DashState, action: DashAction): DashState {
 }
 
 /**
- * Opens an SSE connection to the match-day feed and reduces it into DashState.
- * Reconnecting with a new tickMs/startMinute restarts the deterministic sim.
+ * Subscribes to THE shared match feed and reduces it into DashState. Every
+ * view sees the same clock; sim controls are global via POST /api/sim.
+ * On (re)connect the state resets and the server's catch-up burst rebuilds it.
  */
-export function useMatchStream(tickMs: number, startMinute: number) {
+export function useMatchStream() {
   const [state, dispatch] = useReducer(dashReducer, INITIAL);
   const [connected, setConnected] = useReducerConnected();
 
   useEffect(() => {
-    dispatch({ type: "reset" });
-    const source = new EventSource(`/api/stream?tickMs=${tickMs}&startMinute=${startMinute}`);
-    source.onopen = () => setConnected(true);
+    const source = new EventSource("/api/stream");
+    source.onopen = () => {
+      setConnected(true);
+      dispatch({ type: "reset" });
+    };
     source.onerror = () => setConnected(false);
     source.onmessage = (raw) => {
       try {
@@ -94,7 +103,7 @@ export function useMatchStream(tickMs: number, startMinute: number) {
       }
     };
     return () => source.close();
-  }, [tickMs, startMinute, setConnected]);
+  }, [setConnected]);
 
   return { state, dispatch, connected };
 }

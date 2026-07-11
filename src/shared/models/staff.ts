@@ -13,7 +13,14 @@ export type StaffRole =
 export type TaskStatus = "pending" | "acked" | "in-progress" | "done";
 
 /** What generated the task — lets the staff board group by cause. */
-export type TaskOrigin = "incident" | "demand" | "weather" | "traffic" | "match" | "copilot";
+export type TaskOrigin =
+  | "incident"
+  | "demand"
+  | "weather"
+  | "traffic"
+  | "match"
+  | "copilot"
+  | "emergency";
 
 export interface StaffTask {
   id: string;

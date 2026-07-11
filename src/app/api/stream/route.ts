@@ -1,62 +1,34 @@
 import type { NextRequest } from "next/server";
-import { SIM_TICK_MS } from "@/shared/constants";
 import type { StreamMessage } from "@/shared/models";
-import { IncidentDetector } from "@/lib/simulator/detector";
-import { SimulationEngine } from "@/lib/simulator/engine";
+import { getLiveMatch } from "@/lib/simulator/live";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Live match-day feed as Server-Sent Events. Each `data:` line is one
- * JSON-encoded StreamMessage (see src/shared/models/stream.ts).
- * Each connection runs its own deterministic simulation, so every viewer
- * gets the full story from minute 0. `?tickMs=500` speeds up the demo.
+ * Live match-day feed as Server-Sent Events. Every connection subscribes to
+ * THE shared match (see src/lib/simulator/live.ts) — all viewers see the same
+ * clock and story, and late joiners get a catch-up burst. Global sim controls
+ * live at POST /api/sim.
  */
 export async function GET(req: NextRequest) {
-  const tickParam = Number(req.nextUrl.searchParams.get("tickMs"));
-  const tickMs = Number.isFinite(tickParam) && tickParam > 0
-    ? Math.min(Math.max(tickParam, 250), 10000)
-    : SIM_TICK_MS;
-  const startParam = Number(req.nextUrl.searchParams.get("startMinute"));
-  const startMinute = Number.isFinite(startParam) ? Math.min(Math.max(startParam, 0), 200) : 0;
-
   const encoder = new TextEncoder();
-  const engine = new SimulationEngine();
-  const detector = new IncidentDetector();
+  const live = getLiveMatch();
 
   const stream = new ReadableStream({
     start(controller) {
       let closed = false;
       const send = (msg: StreamMessage) => {
         if (closed) return;
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(msg)}\n\n`));
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(msg)}\n\n`));
+        } catch {
+          closed = true;
+        }
       };
-
-      // Fast-forward burst: the sim is deterministic, so replaying 0..startMinute
-      // instantly rebuilds the exact state a viewer would have seen live.
-      while (engine.clockMinute < startMinute) {
-        const events = engine.tick();
-        for (const event of events) send({ kind: "event", event });
-        for (const incident of detector.process(events, engine.clockMinute)) {
-          send({ kind: "incident", incident });
-        }
-      }
-      send({ kind: "clock", minute: engine.clockMinute });
-
-      const timer = setInterval(() => {
-        const events = engine.tick();
-        send({ kind: "clock", minute: engine.clockMinute });
-        for (const event of events) {
-          send({ kind: "event", event });
-        }
-        for (const incident of detector.process(events, engine.clockMinute)) {
-          send({ kind: "incident", incident });
-        }
-      }, tickMs);
-
+      const unsubscribe = live.subscribe(send);
       req.signal.addEventListener("abort", () => {
         closed = true;
-        clearInterval(timer);
+        unsubscribe();
         try {
           controller.close();
         } catch {

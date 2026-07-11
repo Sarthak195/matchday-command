@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DEMO_VENUE, QUEUE_ALERT_LENGTH, SIM_TICK_MS } from "@/shared/constants";
 import type {
+  EvacuationPlan,
   HandoverReport,
   Incident,
   MatchPhase,
@@ -61,14 +62,31 @@ function eventToText(e: StadiumEvent): string {
 }
 
 export default function Dashboard() {
-  const [tickMs, setTickMs] = useState(SIM_TICK_MS);
-  const [startMinute, setStartMinute] = useState(0);
-  const { state, dispatch, connected } = useMatchStream(tickMs, startMinute);
+  const { state, dispatch, connected } = useMatchStream();
+  const [speed, setSpeed] = useState(SIM_TICK_MS);
+
+  /** Sim controls are GLOBAL — every connected view follows the shared match. */
+  async function simControl(body: { type: "speed"; tickMs: number } | { type: "jump"; toMinute: number } | { type: "restart" }) {
+    try {
+      await fetch("/api/sim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      // transient — the stream keeps flowing either way
+    }
+  }
 
   const [triaging, setTriaging] = useState<Set<string>>(new Set());
   const [briefing, setBriefing] = useState<OpsBriefing | null>(null);
   const [handover, setHandover] = useState<HandoverReport | null>(null);
   const [forecast, setForecast] = useState<WeatherForecast | null>(null);
+  const [emergency, setEmergency] = useState<{
+    phase: "off" | "confirm" | "activating" | "active";
+    plan?: EvacuationPlan;
+    showPlan?: boolean;
+  }>({ phase: "off" });
   const [doc, setDoc] = useState<
     | { kind: "briefing"; data: OpsBriefing }
     | { kind: "handover"; data: HandoverReport }
@@ -292,6 +310,48 @@ export default function Dashboard() {
     };
   }
 
+  /** Declare a major incident: Gemini writes the evacuation plan and the staff
+   *  work orders (dispatched server-side into the shared task queue). */
+  async function activateEmergency() {
+    setEmergency({ phase: "activating" });
+    const declared: StadiumEvent = {
+      type: "radio-log",
+      id: `evt-emergency-${state.minute}`,
+      venueId: DEMO_VENUE.id,
+      atMinute: state.minute,
+      channel: "security",
+      from: "Duty Manager",
+      message: "EMERGENCY DECLARED — controlled evacuation ordered, all gates to egress",
+    };
+    dispatch({ type: "message", msg: { kind: "event", event: declared } });
+    try {
+      const res = await fetch("/api/emergency", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          minute: state.minute,
+          reason: "Controlled evacuation ordered by the duty manager (drill)",
+          zones: DEMO_VENUE.zones.map((z) => ({
+            id: z.id,
+            name: z.name,
+            densityPct: state.zones[z.id]?.densityPct ?? 0,
+            occupancy: state.zones[z.id]?.occupancy ?? 0,
+          })),
+          incidents: state.incidents.filter((i) => i.status !== "resolved"),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Evacuation planning failed");
+      setEmergency({ phase: "active", plan: data.plan as EvacuationPlan, showPlan: true });
+    } catch (err) {
+      setEmergency({ phase: "off" });
+      setDoc({
+        kind: "error",
+        message: err instanceof Error ? err.message : "Evacuation planning failed",
+      });
+    }
+  }
+
   /** Execute a copilot tool call; the returned line is echoed into the chat. */
   async function runToolCall(call: ToolCall): Promise<string> {
     switch (call.name) {
@@ -328,8 +388,32 @@ export default function Dashboard() {
     }
   }
 
+  const emergencyActive = emergency.phase === "active";
+
   return (
     <div className="min-h-screen bg-[#0d0d0d] text-[#c3c2b7]">
+      {emergencyActive && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-2 px-5 py-2 text-sm font-semibold text-white"
+          style={{ backgroundColor: STATUS.critical }}
+        >
+          <span>⚠ EMERGENCY MODE — controlled evacuation in progress · all gates to egress</span>
+          <span className="flex gap-2">
+            <button
+              onClick={() => setEmergency((e) => ({ ...e, showPlan: true }))}
+              className="rounded border border-white/40 px-2.5 py-0.5 text-xs hover:bg-white/10"
+            >
+              View plan
+            </button>
+            <button
+              onClick={() => setEmergency({ phase: "off" })}
+              className="rounded border border-white/40 px-2.5 py-0.5 text-xs hover:bg-white/10"
+            >
+              Stand down
+            </button>
+          </span>
+        </div>
+      )}
       <header className="border-b border-white/10 bg-[#1a1a19]">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3">
           <div>
@@ -353,8 +437,12 @@ export default function Dashboard() {
             <label className="flex items-center gap-1.5 text-xs text-[#898781]">
               Sim speed
               <select
-                value={tickMs}
-                onChange={(e) => setTickMs(Number(e.target.value))}
+                value={speed}
+                onChange={(e) => {
+                  const tickMs = Number(e.target.value);
+                  setSpeed(tickMs);
+                  void simControl({ type: "speed", tickMs });
+                }}
                 className="rounded border border-white/10 bg-[#0d0d0d] px-2 py-1 text-xs text-white"
               >
                 <option value={2000}>1×</option>
@@ -362,12 +450,19 @@ export default function Dashboard() {
               </select>
             </label>
             <button
-              onClick={() => nextBeat !== undefined && setStartMinute(nextBeat)}
+              onClick={() => nextBeat !== undefined && void simControl({ type: "jump", toMinute: nextBeat })}
               disabled={nextBeat === undefined}
-              title="Fast-forward the deterministic sim to the next scripted story beat"
+              title="Fast-forward the shared match to the next scripted story beat (all views follow)"
               className="rounded border border-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/5 disabled:opacity-40"
             >
               ⏭ Next beat{nextBeat !== undefined ? ` (${nextBeat}′)` : ""}
+            </button>
+            <button
+              onClick={() => void simControl({ type: "restart" })}
+              title="Restart the shared match from gates-open (all views follow)"
+              className="rounded border border-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/5"
+            >
+              ↺ Restart
             </button>
             <button
               onClick={() => generateDoc("briefing")}
@@ -393,6 +488,22 @@ export default function Dashboard() {
             >
               Staff view →
             </Link>
+            <Link
+              href="/tournament"
+              className="rounded border border-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/5"
+            >
+              Tournament →
+            </Link>
+            {!emergencyActive && (
+              <button
+                onClick={() => setEmergency({ phase: "confirm" })}
+                disabled={emergency.phase === "activating"}
+                className="rounded px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
+                style={{ backgroundColor: STATUS.critical }}
+              >
+                {emergency.phase === "activating" ? "Planning…" : "⚠ Emergency"}
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -466,12 +577,25 @@ export default function Dashboard() {
                   <div
                     key={gate.id}
                     className="rounded border border-white/10 bg-[#0d0d0d] p-2.5"
-                    style={{ borderLeft: `2px solid ${qs.color}` }}
+                    style={{ borderLeft: `2px solid ${emergencyActive ? STATUS.critical : qs.color}` }}
                   >
                     <p className="text-xs text-[#898781]">{gate.name}</p>
-                    <p className="text-lg font-semibold text-white">{g?.entriesPerMinute ?? 0}</p>
+                    {emergencyActive ? (
+                      <p className="text-lg font-semibold" style={{ color: STATUS.critical }}>
+                        EGRESS
+                      </p>
+                    ) : (
+                      <p className="text-lg font-semibold text-white">{g?.entriesPerMinute ?? 0}</p>
+                    )}
                     <p className="text-[11px] text-[#898781]">
-                      entries/min · queue {queue} · <span style={{ color: qs.color }}>{qs.label}</span>
+                      {emergencyActive ? (
+                        "exit-only mode"
+                      ) : (
+                        <>
+                          entries/min · queue {queue} ·{" "}
+                          <span style={{ color: qs.color }}>{qs.label}</span>
+                        </>
+                      )}
                     </p>
                   </div>
                 );
@@ -568,6 +692,94 @@ export default function Dashboard() {
       </main>
 
       {doc && <DocOverlay doc={doc} onClose={() => setDoc(null)} />}
+
+      {emergency.phase === "confirm" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-lg border border-white/10 bg-[#1a1a19] p-5">
+            <p className="text-sm font-semibold" style={{ color: STATUS.critical }}>
+              ⚠ Declare a major incident?
+            </p>
+            <p className="mt-2 text-sm text-[#c3c2b7]">
+              This flips the venue to evacuation posture: all gates go exit-only, Gemini writes the
+              zone-by-zone evacuation plan, and work orders are dispatched to every staff role.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => void activateEmergency()}
+                className="rounded px-3 py-1.5 text-sm font-semibold text-white"
+                style={{ backgroundColor: STATUS.critical }}
+              >
+                Activate emergency mode
+              </button>
+              <button
+                onClick={() => setEmergency({ phase: "off" })}
+                className="rounded border border-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/5"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {emergencyActive && emergency.showPlan && emergency.plan && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setEmergency((e) => ({ ...e, showPlan: false }))}
+        >
+          <div
+            className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg border bg-[#1a1a19] p-5"
+            style={{ borderColor: `${STATUS.critical}66` }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: STATUS.critical }}>
+              Evacuation plan · minute {emergency.plan.generatedAtMinute}
+            </p>
+            <div className="mt-3 rounded border border-white/10 bg-[#0d0d0d] p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#898781]">
+                PA announcement — read verbatim
+              </p>
+              <p className="mt-1 whitespace-pre-wrap text-sm italic text-white">
+                “{emergency.plan.paAnnouncement}”
+              </p>
+            </div>
+            <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-[#898781]">
+              Command summary
+            </h4>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-[#c3c2b7]">
+              {emergency.plan.commandSummary}
+            </p>
+            <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-[#898781]">
+              Zone orders (in sequence)
+            </h4>
+            <ul className="mt-1 space-y-1.5">
+              {[...emergency.plan.zoneOrders]
+                .sort((a, b) => a.priority - b.priority)
+                .map((o) => (
+                  <li key={o.zoneId} className="flex gap-2 text-sm">
+                    <span className="mt-px h-4 w-4 shrink-0 rounded-full border border-white/20 text-center text-[10px] leading-4 text-white">
+                      {o.priority}
+                    </span>
+                    <span>
+                      <span className="font-medium text-white">{o.zoneName}:</span>{" "}
+                      <span className="text-[#c3c2b7]">{o.instruction}</span>{" "}
+                      <span className="text-[#898781]">→ {o.exitVia}</span>
+                    </span>
+                  </li>
+                ))}
+            </ul>
+            <p className="mt-3 text-xs text-[#898781]">
+              Staff work orders were dispatched to the staff console automatically.
+            </p>
+            <button
+              onClick={() => setEmergency((e) => ({ ...e, showPlan: false }))}
+              className="mt-4 rounded border border-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/5"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       <Copilot snapshot={copilotSnapshot} onToolCall={runToolCall} />
 
