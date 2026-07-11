@@ -14,9 +14,10 @@ AI incident command copilot for stadium/tournament operations. Solo entry for **
 - `src/shared/models/` — **single source of truth** for all domain types (events, incidents, briefings, SSE protocol). UI, API routes, and simulator all import from here. Add new signal types to the `StadiumEvent` discriminated union first, then handle exhaustively.
 - `src/shared/constants.ts` — demo venue (`DEMO_VENUE`, fictional "Meridian Arena, Indore"), density thresholds, sim pacing.
 - `src/lib/simulator/` — tick-based engine; `scenario.ts` is the scripted demo storyline (clock = minutes since gates open, kickoff at minute 60). The scenario IS the demo script — keep it aligned with `docs/DEMO_SCRIPT.md`.
-- `src/lib/gemini.ts` — all Gemini calls go through `generateJson()` (structured output). Model from `GEMINI_MODEL` env, default `gemini-2.5-flash`.
-- `src/lib/store.ts` — in-memory `OpsState`; deliberate single-instance design (Cloud Run `--max-instances 1`). Don't add a database without a reason.
-- `src/app/api/stream` — SSE feed of `StreamMessage`s; `api/triage` — Gemini incident triage (working); `api/briefing` — stub (501), next up.
+- `src/lib/simulator/detector.ts` — rule-based incident detection (density/queue/medical/weather thresholds). Rules open incidents; Gemini only fills `triage`.
+- `src/lib/gemini.ts` — all Gemini calls go through `generateJson()` (structured output). Model from `GEMINI_MODEL` env, default `gemini-3.5-flash` (2.5-flash is retired for new API keys as of mid-2026).
+- `src/app/api/stream` — SSE feed; each connection runs its own deterministic sim (seed 42), `?tickMs=` controls pace. `api/triage` and `api/briefing` (+`?type=handover`) are the Gemini endpoints; the client posts its accumulated state, so the server is stateless (`src/lib/store.ts` is currently unused scaffolding).
+- `src/components/dashboard.tsx` — the whole ops UI; dark-surface design tokens at the top of the file (status colors are CVD/contrast-validated; always paired with a text label, never color alone).
 
 ## Conventions
 

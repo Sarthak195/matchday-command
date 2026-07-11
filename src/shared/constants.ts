@@ -4,11 +4,17 @@ import type { Venue } from "./models/venue";
 export const DENSITY_WATCH_PCT = 70;
 /** Density at which a crowd incident is auto-opened. */
 export const DENSITY_ALERT_PCT = 85;
+/** Density at which an auto-opened crowd incident is rated high severity. */
+export const DENSITY_CRITICAL_PCT = 92;
+/** Gate queue length at which a gate incident is auto-opened. */
+export const QUEUE_ALERT_LENGTH = 300;
 
 /** Simulation pacing: one simulated minute per real tick. */
 export const SIM_TICK_MS = 2000;
 /** Kickoff happens this many simulated minutes after gates open. */
 export const KICKOFF_MINUTE = 60;
+/** Fans expected through the gates for the demo match (~88% of capacity). */
+export const EXPECTED_ATTENDANCE = 46000;
 
 /** Fictional demo venue — sized like a mid-tier international stadium. */
 export const DEMO_VENUE: Venue = {

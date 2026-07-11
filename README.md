@@ -59,13 +59,14 @@ gcloud run deploy matchday-command --source . --region asia-south1 \
 ## Roadmap
 
 - [x] Shared domain models + SSE protocol
-- [x] Simulator skeleton with scripted match-day scenario
+- [x] Simulator with scripted match-day scenario + baseline arrival curves
 - [x] Gemini triage endpoint (structured output)
-- [ ] Live ops dashboard (zones, gates, incident feed)
-- [ ] Incident detection rules (density/queue thresholds → auto-open incidents)
-- [ ] Briefing + shift handover generation
-- [ ] Baseline simulator noise (arrival curves) so anomalies pop
+- [x] Live ops dashboard (zone density meters, gate tiles, event ticker, incident queue)
+- [x] Incident detection rules (density/queue/medical/weather → auto-open incidents)
+- [x] Briefing + shift handover generation
 - [x] Cloud Run deployment ([live demo](https://matchday-command-1069049902747.asia-south1.run.app))
+- [ ] Incident timeline export / judge-facing replay mode
+- [ ] Mobile layout polish
 
 ## License
 

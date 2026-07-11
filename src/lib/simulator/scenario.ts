@@ -13,13 +13,14 @@ export interface ScenarioBeat {
 
 /**
  * Scripted match-day storyline (clock = minutes since gates open, kickoff at 60).
- * The engine layers baseline gate-flow/density noise on top of these beats.
- * This is the demo script — tune it so each AI feature gets a moment to shine.
+ * The engine layers baseline gate-flow/density noise on top of these beats and
+ * folds scripted gate/density values into its own state so they decay naturally.
+ * This is the demo script — keep it aligned with docs/DEMO_SCRIPT.md.
  */
 export const SCENARIO: ScenarioBeat[] = [
   {
     atMinute: 0,
-    events: [{ type: "match", atMinute: 0, phase: "gates-open", note: "Gates open, 52k expected" }],
+    events: [{ type: "match", atMinute: 0, phase: "gates-open", note: "Gates open, 46k expected" }],
   },
   {
     atMinute: 28,
@@ -68,7 +69,37 @@ export const SCENARIO: ScenarioBeat[] = [
     ],
   },
   {
+    atMinute: 83,
+    events: [
+      { type: "match", atMinute: 83, phase: "goal", note: "1-0 home side" },
+      {
+        type: "radio-log",
+        atMinute: 83,
+        channel: "security",
+        from: "Spotter 7",
+        message: "Celebration surge in Block 4, settled itself, no action needed",
+      },
+    ],
+  },
+  {
     atMinute: 105,
     events: [{ type: "match", atMinute: 105, phase: "halftime" }],
+  },
+  {
+    atMinute: 120,
+    events: [{ type: "match", atMinute: 120, phase: "second-half" }],
+  },
+  {
+    atMinute: 165,
+    events: [
+      { type: "match", atMinute: 165, phase: "fulltime", note: "Egress begins, all gates to exit mode" },
+      {
+        type: "radio-log",
+        atMinute: 165,
+        channel: "stewarding",
+        from: "Egress Lead",
+        message: "Opening all gates for exit, metro-side crossing staffed",
+      },
+    ],
   },
 ];
