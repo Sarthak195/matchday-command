@@ -2,6 +2,8 @@
 
 The scripted scenario in `src/lib/simulator/scenario.ts` **is** this demo. If you change one, change the other.
 
+**Demo controls:** set sim speed to 4× before you start, and use **⏭ Next beat** to fast-forward to each story moment — the sim is deterministic, so jumping rebuilds the exact state instantly. Finish by clicking **↓ Export report** and showing the judges the markdown match-day report the ops room just "wrote".
+
 **0:00 — Set the scene (15s).** "Every stadium AI you'll see today talks to fans. This one sits in the control room. Meridian Arena, 52,000 seats, gates just opened."
 
 **0:15 — Show the pulse (30s).** Dashboard live: gates flowing, zones green, radio ticker scrolling. Point out this is a full match-day simulation — no hardware needed, fully reproducible.

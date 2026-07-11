@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
   const tickMs = Number.isFinite(tickParam) && tickParam > 0
     ? Math.min(Math.max(tickParam, 250), 10000)
     : SIM_TICK_MS;
+  const startParam = Number(req.nextUrl.searchParams.get("startMinute"));
+  const startMinute = Number.isFinite(startParam) ? Math.min(Math.max(startParam, 0), 200) : 0;
 
   const encoder = new TextEncoder();
   const engine = new SimulationEngine();
@@ -29,6 +31,17 @@ export async function GET(req: NextRequest) {
         if (closed) return;
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(msg)}\n\n`));
       };
+
+      // Fast-forward burst: the sim is deterministic, so replaying 0..startMinute
+      // instantly rebuilds the exact state a viewer would have seen live.
+      while (engine.clockMinute < startMinute) {
+        const events = engine.tick();
+        for (const event of events) send({ kind: "event", event });
+        for (const incident of detector.process(events, engine.clockMinute)) {
+          send({ kind: "incident", incident });
+        }
+      }
+      send({ kind: "clock", minute: engine.clockMinute });
 
       const timer = setInterval(() => {
         const events = engine.tick();

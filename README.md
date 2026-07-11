@@ -65,8 +65,8 @@ gcloud run deploy matchday-command --source . --region asia-south1 \
 - [x] Incident detection rules (density/queue/medical/weather → auto-open incidents)
 - [x] Briefing + shift handover generation
 - [x] Cloud Run deployment ([live demo](https://matchday-command-1069049902747.asia-south1.run.app))
-- [ ] Incident timeline export / judge-facing replay mode
-- [ ] Mobile layout polish
+- [x] Judge-facing replay controls (deterministic "next beat" fast-forward) + report export
+- [x] Mobile layout (incidents above feed, stacked panels)
 
 ## License
 
