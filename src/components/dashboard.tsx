@@ -1,123 +1,26 @@
 "use client";
 
-import { useEffect, useMemo, useReducer, useState } from "react";
-import {
-  DEMO_VENUE,
-  DENSITY_ALERT_PCT,
-  DENSITY_CRITICAL_PCT,
-  DENSITY_WATCH_PCT,
-  QUEUE_ALERT_LENGTH,
-  SIM_TICK_MS,
-} from "@/shared/constants";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { DEMO_VENUE, QUEUE_ALERT_LENGTH, SIM_TICK_MS } from "@/shared/constants";
 import type {
   HandoverReport,
   Incident,
-  IncidentSeverity,
   MatchPhase,
   OpsBriefing,
   StadiumEvent,
-  StreamMessage,
   TriageResult,
+  WeatherForecast,
 } from "@/shared/models";
+import { ACCENT, PHASE_LABEL, SEVERITY_META, STATUS, densityState } from "@/lib/theme";
+import { trafficAt } from "@/lib/traffic/model";
+import { useMatchStream } from "@/lib/useMatchStream";
 import { SCENARIO } from "@/lib/simulator/scenario";
+import { Panel, StatRow, Tag } from "@/components/primitives";
+import { VenueMap } from "@/components/venue-map";
 
 /** Scripted story beats, for the "next beat" jump control. */
 const BEAT_MINUTES = SCENARIO.map((b) => b.atMinute);
-
-/* Design tokens — dark-surface palette validated for CVD + contrast.
-   Status colors never carry meaning alone; every use pairs with a text label. */
-const INK = { primary: "#ffffff", secondary: "#c3c2b7", muted: "#898781" };
-const STATUS = { good: "#0ca30c", warning: "#fab219", serious: "#ec835a", critical: "#d03b3b" };
-
-const SEVERITY_META: Record<IncidentSeverity, { label: string; color: string }> = {
-  info: { label: "Info", color: INK.muted },
-  low: { label: "Low", color: STATUS.good },
-  medium: { label: "Medium", color: STATUS.warning },
-  high: { label: "High", color: STATUS.serious },
-  critical: { label: "Critical", color: STATUS.critical },
-};
-
-function densityState(pct: number): { label: string; color: string } {
-  if (pct >= DENSITY_CRITICAL_PCT) return { label: "Critical", color: STATUS.critical };
-  if (pct >= DENSITY_ALERT_PCT) return { label: "Alert", color: STATUS.serious };
-  if (pct >= DENSITY_WATCH_PCT) return { label: "Watch", color: STATUS.warning };
-  return { label: "OK", color: STATUS.good };
-}
-
-const PHASE_LABEL: Record<MatchPhase, string> = {
-  "gates-open": "Gates open",
-  kickoff: "First half",
-  goal: "First half",
-  halftime: "Halftime",
-  "second-half": "Second half",
-  fulltime: "Full time",
-};
-
-interface DashState {
-  minute: number;
-  phase: MatchPhase;
-  events: StadiumEvent[];
-  incidents: Incident[];
-  zones: Record<string, { occupancy: number; densityPct: number }>;
-  gates: Record<string, { entriesPerMinute: number; queueLength: number }>;
-}
-
-const INITIAL: DashState = {
-  minute: 0,
-  phase: "gates-open",
-  events: [],
-  incidents: [],
-  zones: {},
-  gates: {},
-};
-
-type Action =
-  | { type: "reset" }
-  | { type: "message"; msg: StreamMessage }
-  | { type: "triage"; incidentId: string; triage: TriageResult }
-  | { type: "status"; incidentId: string; status: Incident["status"] };
-
-function reducer(state: DashState, action: Action): DashState {
-  switch (action.type) {
-    case "reset":
-      return INITIAL;
-    case "triage":
-      return {
-        ...state,
-        incidents: state.incidents.map((i) =>
-          i.id === action.incidentId ? { ...i, triage: action.triage, severity: action.triage.severity } : i,
-        ),
-      };
-    case "status":
-      return {
-        ...state,
-        incidents: state.incidents.map((i) =>
-          i.id === action.incidentId ? { ...i, status: action.status } : i,
-        ),
-      };
-    case "message": {
-      const msg = action.msg;
-      if (msg.kind === "clock") return { ...state, minute: msg.minute };
-      if (msg.kind === "incident") return { ...state, incidents: [msg.incident, ...state.incidents] };
-      if (msg.kind === "event") {
-        const e = msg.event;
-        const next: DashState = { ...state, events: [e, ...state.events].slice(0, 250) };
-        if (e.type === "match") next.phase = e.phase === "goal" ? state.phase : e.phase;
-        if (e.type === "crowd-density") {
-          next.zones = { ...state.zones, [e.zoneId]: { occupancy: e.occupancy, densityPct: e.densityPct } };
-        }
-        if (e.type === "gate-flow") {
-          next.gates = {
-            ...state.gates,
-            [e.gateId]: { entriesPerMinute: e.entriesPerMinute, queueLength: e.queueLength },
-          };
-        }
-        return next;
-      }
-      return state;
-    }
-  }
-}
 
 /** Events worth sending to Gemini as context for one incident. */
 function triageContext(incident: Incident, events: StadiumEvent[]): StadiumEvent[] {
@@ -135,13 +38,14 @@ function triageContext(incident: Incident, events: StadiumEvent[]): StadiumEvent
 }
 
 export default function Dashboard() {
-  const [state, dispatch] = useReducer(reducer, INITIAL);
   const [tickMs, setTickMs] = useState(SIM_TICK_MS);
   const [startMinute, setStartMinute] = useState(0);
-  const [connected, setConnected] = useState(false);
+  const { state, dispatch, connected } = useMatchStream(tickMs, startMinute);
+
   const [triaging, setTriaging] = useState<Set<string>>(new Set());
   const [briefing, setBriefing] = useState<OpsBriefing | null>(null);
   const [handover, setHandover] = useState<HandoverReport | null>(null);
+  const [forecast, setForecast] = useState<WeatherForecast | null>(null);
   const [doc, setDoc] = useState<
     | { kind: "briefing"; data: OpsBriefing }
     | { kind: "handover"; data: HandoverReport }
@@ -151,22 +55,14 @@ export default function Dashboard() {
   >(null);
 
   useEffect(() => {
-    dispatch({ type: "reset" });
-    const source = new EventSource(`/api/stream?tickMs=${tickMs}&startMinute=${startMinute}`);
-    source.onopen = () => setConnected(true);
-    source.onerror = () => setConnected(false);
-    source.onmessage = (raw) => {
-      try {
-        dispatch({ type: "message", msg: JSON.parse(raw.data) as StreamMessage });
-      } catch {
-        // skip malformed frame
-      }
-    };
-    return () => source.close();
-  }, [tickMs, startMinute]);
+    fetch("/api/weather")
+      .then((r) => r.json())
+      .then((f: WeatherForecast) => setForecast(f))
+      .catch(() => undefined);
+  }, []);
 
   const nextBeat = BEAT_MINUTES.find((m) => m > state.minute);
-
+  const traffic = useMemo(() => trafficAt(state.minute, state.phase), [state.minute, state.phase]);
   const openIncidents = state.incidents.filter((i) => i.status !== "resolved");
   const worstDensity = useMemo(
     () => Math.max(0, ...Object.values(state.zones).map((z) => z.densityPct)),
@@ -297,11 +193,11 @@ export default function Dashboard() {
       <header className="border-b border-white/10 bg-[#1a1a19]">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#3987e5]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
               MatchDay Command
             </p>
             <p className="text-xs text-[#898781]">
-              {DEMO_VENUE.name}, {DEMO_VENUE.city} · simulated match day
+              {DEMO_VENUE.name}, {DEMO_VENUE.city} · ops control room
             </p>
           </div>
           <div className="flex items-baseline gap-3">
@@ -351,12 +247,18 @@ export default function Dashboard() {
             >
               ↓ Export report
             </button>
+            <Link
+              href="/staff"
+              className="rounded border border-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/5"
+            >
+              Staff view →
+            </Link>
           </div>
         </div>
       </header>
 
       <main className="mx-auto grid max-w-[1400px] grid-cols-1 gap-4 px-5 py-4 lg:grid-cols-[300px_minmax(0,1fr)_380px]">
-        {/* Zones & gates */}
+        {/* Zones, gates, weather */}
         <section className="order-1 space-y-4 lg:order-none">
           <Panel title="Zone density">
             <ul className="space-y-3">
@@ -374,10 +276,7 @@ export default function Dashboard() {
                           <span style={{ color: s.color }}>{s.label}</span>
                         </span>
                       </div>
-                      <div
-                        className="h-1.5 overflow-hidden rounded-full"
-                        style={{ backgroundColor: `${s.color}33` }}
-                      >
+                      <div className="h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: `${s.color}33` }}>
                         <div
                           className="h-full rounded-full transition-[width] duration-500"
                           style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: s.color }}
@@ -417,6 +316,23 @@ export default function Dashboard() {
             </div>
           </Panel>
 
+          <Panel title="Weather">
+            {forecast ? (
+              <div>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xl font-semibold text-white">{Math.round(forecast.tempC)}°C</span>
+                  <span className="text-sm capitalize text-[#c3c2b7]">{forecast.condition}</span>
+                </div>
+                <p className="mt-1 text-xs text-[#898781]">{forecast.summary}</p>
+                <p className="mt-1 text-[11px] text-[#898781]">
+                  {forecast.source === "live" ? "● Live (Open-Meteo)" : "● Simulated fallback"}
+                </p>
+              </div>
+            ) : (
+              <p className="py-3 text-center text-xs text-[#898781]">Loading forecast…</p>
+            )}
+          </Panel>
+
           <Panel title="Occupancy">
             <StatRow label="Inside (est.)" value={insideEstimate.toLocaleString()} />
             <StatRow label="Worst zone density" value={`${worstDensity}%`} />
@@ -424,33 +340,45 @@ export default function Dashboard() {
           </Panel>
         </section>
 
-        {/* Event ticker */}
-        <Panel
-          title="Live feed"
-          className="order-3 lg:order-none"
-          bodyClassName="max-h-[50vh] overflow-y-auto lg:max-h-[78vh]"
-        >
-          {state.events.length === 0 ? (
-            <p className="py-8 text-center text-sm text-[#898781]">Waiting for gate telemetry…</p>
-          ) : (
-            <ul className="divide-y divide-white/5 text-sm">
-              {state.events.slice(0, 60).map((e) => (
-                <li key={e.id} className="flex gap-3 py-1.5">
-                  <span className="w-8 shrink-0 text-right text-xs tabular-nums text-[#898781]">
-                    {e.atMinute}&prime;
-                  </span>
-                  <EventLine event={e} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
+        {/* Map + live feed */}
+        <div className="order-3 space-y-4 lg:order-none">
+          <Panel title="Approach & traffic">
+            <VenueMap traffic={traffic} />
+            {traffic.advisories.length > 0 && (
+              <ul className="mt-3 space-y-1.5">
+                {traffic.advisories.map((a) => (
+                  <li key={a.id} className="flex gap-2 text-xs">
+                    <span style={{ color: a.severity === "warning" ? STATUS.warning : STATUS.good }}>●</span>
+                    <span className="text-[#c3c2b7]">{a.message}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+
+          <Panel title="Live feed" bodyClassName="max-h-[46vh] overflow-y-auto">
+            {state.events.length === 0 ? (
+              <p className="py-8 text-center text-sm text-[#898781]">Waiting for gate telemetry…</p>
+            ) : (
+              <ul className="divide-y divide-white/5 text-sm">
+                {state.events.slice(0, 60).map((e) => (
+                  <li key={e.id} className="flex gap-3 py-1.5">
+                    <span className="w-8 shrink-0 text-right text-xs tabular-nums text-[#898781]">
+                      {e.atMinute}&prime;
+                    </span>
+                    <EventLine event={e} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+        </div>
 
         {/* Incident queue */}
         <Panel
           title={`Incidents (${openIncidents.length} open)`}
           className="order-2 lg:order-none"
-          bodyClassName="max-h-[60vh] overflow-y-auto lg:max-h-[78vh]"
+          bodyClassName="max-h-[80vh] overflow-y-auto"
         >
           {state.incidents.length === 0 ? (
             <p className="py-8 text-center text-sm text-[#898781]">
@@ -481,44 +409,15 @@ export default function Dashboard() {
   );
 }
 
-function Panel({
-  title,
-  children,
-  className = "",
-  bodyClassName = "",
-}: {
-  title: string;
-  children: React.ReactNode;
-  className?: string;
-  bodyClassName?: string;
-}) {
-  return (
-    <section className={`rounded-lg border border-white/10 bg-[#1a1a19] ${className}`}>
-      <h2 className="border-b border-white/10 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wider text-[#898781]">
-        {title}
-      </h2>
-      <div className={`p-3.5 ${bodyClassName}`}>{children}</div>
-    </section>
-  );
-}
-
-function StatRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between py-1">
-      <span className="text-xs text-[#898781]">{label}</span>
-      <span className="text-base font-semibold text-white">{value}</span>
-    </div>
-  );
-}
-
 function EventLine({ event }: { event: StadiumEvent }) {
   const zone = (id: string) => DEMO_VENUE.zones.find((z) => z.id === id)?.name ?? id;
   const gate = (id: string) => DEMO_VENUE.gates.find((g) => g.id === id)?.name ?? id;
+  const phaseLabel = (p: MatchPhase) => PHASE_LABEL[p];
   switch (event.type) {
     case "match":
       return (
         <span className="text-white">
-          <Tag>Match</Tag> {PHASE_LABEL[event.phase]}
+          <Tag>Match</Tag> {phaseLabel(event.phase)}
           {event.phase === "goal" && " — GOAL"}
           {event.note ? <span className="text-[#898781]"> · {event.note}</span> : null}
         </span>
@@ -532,8 +431,7 @@ function EventLine({ event }: { event: StadiumEvent }) {
     case "gate-flow":
       return (
         <span>
-          <Tag>Gate</Tag> {gate(event.gateId)} · {event.entriesPerMinute}/min · queue{" "}
-          {event.queueLength}
+          <Tag>Gate</Tag> {gate(event.gateId)} · {event.entriesPerMinute}/min · queue {event.queueLength}
         </span>
       );
     case "crowd-density":
@@ -557,14 +455,6 @@ function EventLine({ event }: { event: StadiumEvent }) {
         </span>
       );
   }
-}
-
-function Tag({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="mr-1 rounded bg-white/5 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#898781]">
-      {children}
-    </span>
-  );
 }
 
 function IncidentCard({
@@ -601,7 +491,7 @@ function IncidentCard({
 
       {incident.triage ? (
         <div className="mt-2 rounded border border-white/10 bg-[#1a1a19] p-2.5 text-xs">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-[#3987e5]">
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: ACCENT }}>
             AI triage
           </p>
           <p className="mt-1 text-[#c3c2b7]">{incident.triage.summary}</p>
@@ -613,8 +503,7 @@ function IncidentCard({
                   {a.priority}
                 </span>
                 <span>
-                  <span className="text-white">{a.action}</span>{" "}
-                  <Tag>{a.assignTo}</Tag>
+                  <span className="text-white">{a.action}</span> <Tag>{a.assignTo}</Tag>
                 </span>
               </li>
             ))}
@@ -670,17 +559,12 @@ function DocOverlay({
   onClose: () => void;
 }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
         className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-white/10 bg-[#1a1a19] p-5"
         onClick={(e) => e.stopPropagation()}
       >
-        {doc.kind === "loading" && (
-          <p className="py-10 text-center text-sm text-[#898781]">{doc.label}</p>
-        )}
+        {doc.kind === "loading" && <p className="py-10 text-center text-sm text-[#898781]">{doc.label}</p>}
         {doc.kind === "error" && (
           <>
             <p className="text-sm font-semibold" style={{ color: STATUS.serious }}>
@@ -691,34 +575,28 @@ function DocOverlay({
         )}
         {doc.kind === "briefing" && (
           <>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#3987e5]">
+            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: ACCENT }}>
               Ops briefing · minute {doc.data.generatedAtMinute}
             </p>
             <h3 className="mt-1 text-lg font-semibold text-white">{doc.data.headline}</h3>
             <p className="mt-3 whitespace-pre-wrap text-sm text-[#c3c2b7]">{doc.data.situation}</p>
-            <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-[#898781]">
-              Watch items
-            </h4>
+            <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-[#898781]">Watch items</h4>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-[#c3c2b7]">
               {doc.data.watchItems.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
             </ul>
-            <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-[#898781]">
-              Crowd outlook
-            </h4>
+            <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-[#898781]">Crowd outlook</h4>
             <p className="mt-1 text-sm text-[#c3c2b7]">{doc.data.crowdOutlook}</p>
           </>
         )}
         {doc.kind === "handover" && (
           <>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#3987e5]">
+            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: ACCENT }}>
               Shift handover · {doc.data.shift}
             </p>
             <p className="mt-3 whitespace-pre-wrap text-sm text-[#c3c2b7]">{doc.data.narrative}</p>
-            <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-[#898781]">
-              For the next shift
-            </h4>
+            <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-[#898781]">For the next shift</h4>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-[#c3c2b7]">
               {doc.data.actionsForNextShift.map((item, i) => (
                 <li key={i}>{item}</li>

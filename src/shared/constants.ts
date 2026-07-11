@@ -1,4 +1,9 @@
 import type { Venue } from "./models/venue";
+import type { LatLng } from "./models/traffic";
+
+/** Real-world coordinates the venue is pinned to (Indore) — used for the map
+ *  center and the live weather lookup. */
+export const VENUE_LOCATION: LatLng = { lat: 22.7243, lng: 75.8712 };
 
 /** Density (% of zone capacity) at which a zone shows as "watch" on the dashboard. */
 export const DENSITY_WATCH_PCT = 70;

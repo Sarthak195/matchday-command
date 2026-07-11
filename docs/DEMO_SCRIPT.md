@@ -14,6 +14,12 @@ The scripted scenario in `src/lib/simulator/scenario.ts` **is** this demo. If yo
 
 **2:30 — The payoff (30s).** Click **Generate briefing**: Gemini writes the ops-room situation report — open incidents, watch items (storm cell inbound at 75'), crowd outlook for halftime. "This document is what a duty manager writes by hand today. Judges, refresh the page — it's live on Cloud Run."
 
+## The second act — staff console & demand (60s)
+
+After the ops story, click **Staff view →**. "Same brain, different lens — this is what floor teams see." Point out the **live weather** (real Open-Meteo for Indore), then the **AI demand forecast**: Gemini turned the forecast + 46k attendance into a stocking plan — call out the biggest shortfall (e.g. "+30,000 bottled water, act now"). Then the **task board**: prep orders, traffic advisories, weather readiness, and incident response all dispatched to the right role, each with an ack → in-progress → done lifecycle. "The system doesn't just watch the stadium — it runs it."
+
+Back on ops, the **Approach & traffic** panel shows the live Google map with real traffic and routing advisories ("steer arrivals to Ring Road, direct parking to Lot C").
+
 ## Judge Q&A ammo
 
 - *Why simulated data?* Real stadium telemetry isn't accessible to a solo student in a two-week sprint; the simulator makes the demo deterministic and the architecture is sensor-agnostic — the SSE contract is the integration point.
