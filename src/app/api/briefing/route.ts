@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { Type } from "@google/genai";
-import { generateJson } from "@/lib/gemini";
+import { geminiErrorMessage, generateJson } from "@/lib/gemini";
 import { DEMO_VENUE } from "@/shared/constants";
 import type { HandoverReport, Incident, OpsBriefing, StadiumEvent } from "@/shared/models";
 
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     };
     return NextResponse.json(briefing);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Generation failed";
+    const message = geminiErrorMessage(err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

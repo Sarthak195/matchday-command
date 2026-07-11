@@ -17,6 +17,21 @@ export function getClient(): GoogleGenAI {
   return client;
 }
 
+/** Turn SDK errors (often raw JSON blobs) into a line fit for the UI. */
+export function geminiErrorMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  try {
+    const parsed = JSON.parse(raw) as { error?: { code?: number; message?: string } };
+    const code = parsed.error?.code;
+    if (code === 503) return "Gemini is briefly overloaded — try again in a few seconds.";
+    if (code === 429) return "Gemini rate limit reached — wait a moment and retry.";
+    if (parsed.error?.message) return parsed.error.message;
+  } catch {
+    // not JSON — fall through
+  }
+  return raw;
+}
+
 /**
  * Ask Gemini for a JSON object matching `schema` (Gemini structured-output schema,
  * built with the `Type` enum from @google/genai). All AI calls in the app go

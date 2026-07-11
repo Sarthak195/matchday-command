@@ -20,6 +20,10 @@ After the ops story, click **Staff view →**. "Same brain, different lens — t
 
 Back on ops, the **Approach & traffic** panel shows the live Google map with real traffic and routing advisories ("steer arrivals to Ring Road, direct parking to Lot C").
 
+## The third act — the agentic close (45s)
+
+Around 35–45′, the **Early warnings** panel fires: "North Concourse on track to hit 85% in ~X min." Say: "reactive dashboards alert *after* thresholds break — this projects ahead." Then click **🎙 Radio report** and *speak*: "steward reporting a blocked stairway near block twelve" — the transcript lands in the feed. Open **✦ Copilot** and type "task stewarding to clear the blocked stairway at block 12, priority 1" — show the confirmation, then flip to the **staff console** where the task just appeared under Stewarding. Close with: "Predict, hear, decide, dispatch — one loop."
+
 ## Judge Q&A ammo
 
 - *Why simulated data?* Real stadium telemetry isn't accessible to a solo student in a two-week sprint; the simulator makes the demo deterministic and the architecture is sensor-agnostic — the SSE contract is the integration point.

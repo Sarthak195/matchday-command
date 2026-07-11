@@ -20,7 +20,11 @@ AI incident command copilot for stadium/tournament operations. Solo entry for **
 - `src/components/dashboard.tsx` — ops control room UI (`/`). `src/components/staff-dashboard.tsx` — staff console (`/staff`), a second persona: weather + AI demand plan + role-grouped task board. Both share `src/lib/useMatchStream.ts` (SSE→state hook), `src/lib/theme.ts` (CVD/contrast-validated dark tokens — status colors always paired with a text label), and `src/components/primitives.tsx` (Panel/Tag/StatRow).
 - `src/lib/weather/client.ts` — live weather via Open-Meteo (keyless) with a deterministic simulated fallback; `/api/weather` exposes it. `src/lib/traffic/model.ts` — deterministic approach-traffic/parking model (`trafficAt(minute, phase)`), computed client-side; geo fixtures pinned near `VENUE_LOCATION` (Indore).
 - `src/components/venue-map.tsx` — Google Maps + live TrafficLayer when `MAPS_API_KEY` is set (fetched at runtime from `/api/config`, not build-inlined), SVG schematic fallback otherwise. Google objects are locally `any` (no `@types/google.maps` dep).
-- `/api/demand` — Gemini demand forecast: weather + attendance + phase → stocking plan (`DemandPlan`) + prep `StaffTask`s. `/api/config` — runtime bootstrap (maps key presence). All AI routes stay stateless; the client posts accumulated state.
+- `/api/demand` — Gemini demand forecast: weather + attendance + phase → stocking plan (`DemandPlan`) + prep `StaffTask`s. `/api/config` — runtime bootstrap (maps key presence). All AI routes stay stateless; the client posts accumulated state. Gemini errors go through `geminiErrorMessage()` for UI-friendly text.
+- `/api/copilot` — agentic chat: history + snapshot in; text and/or `toolCalls` out (open_incident / dispatch_task / generate_briefing). Tool calls execute CLIENT-side in `dashboard.tsx#runToolCall`; the system prompt enforces "act only on instruction, answer questions with text".
+- `/api/tasks` (GET/POST) + `src/lib/store.ts` — in-memory dispatch queue; staff console polls every 15s. Single-instance by design.
+- `src/lib/predict.ts` — `computeWarnings(events, minute)`: linear trend projection to density/queue thresholds (client-side, "Early warnings" panel; feeds copilot snapshot).
+- `src/components/voice-radio.tsx` — Web Speech API push-to-talk (Chrome/Edge; hides on unsupported browsers); transcript becomes a radio-log event in local state.
 
 ## Conventions
 

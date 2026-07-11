@@ -1,31 +1,23 @@
-import type { Incident, StadiumEvent } from "@/shared/models";
+import type { StaffTask } from "@/shared/models";
 
 /**
- * In-memory match-day state. Fine for the demo: Cloud Run runs a single
- * instance (set max-instances=1) and the simulation is ephemeral by design.
- * Swap for Firestore later if state must survive restarts.
+ * In-memory dispatch queue: tasks pushed from the ops side (copilot, demand
+ * plan) that the staff console polls. Single-instance by design — Cloud Run
+ * runs with --max-instances 1 and a restart simply clears the shift's queue.
  */
-export interface OpsState {
-  minute: number;
-  events: StadiumEvent[];
-  incidents: Incident[];
-  zoneOccupancy: Record<string, number>;
+
+const tasks: StaffTask[] = [];
+let seq = 0;
+
+export function listTasks(): StaffTask[] {
+  return tasks;
 }
 
-const state: OpsState = {
-  minute: 0,
-  events: [],
-  incidents: [],
-  zoneOccupancy: {},
-};
-
-export function getState(): OpsState {
-  return state;
-}
-
-export function resetState(): void {
-  state.minute = 0;
-  state.events = [];
-  state.incidents = [];
-  state.zoneOccupancy = {};
+export function addTask(
+  input: Omit<StaffTask, "id" | "status"> & { status?: StaffTask["status"] },
+): StaffTask {
+  const task: StaffTask = { status: "pending", ...input, id: `task-srv-${seq++}` };
+  tasks.push(task);
+  if (tasks.length > 200) tasks.shift();
+  return task;
 }

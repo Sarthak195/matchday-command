@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { Type } from "@google/genai";
-import { generateJson } from "@/lib/gemini";
+import { geminiErrorMessage, generateJson } from "@/lib/gemini";
 import { DEMO_VENUE } from "@/shared/constants";
 import type { StadiumEvent, TriageResult } from "@/shared/models";
 
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(triage);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Triage failed";
+    const message = geminiErrorMessage(err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

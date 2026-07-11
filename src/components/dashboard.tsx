@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DEMO_VENUE, QUEUE_ALERT_LENGTH, SIM_TICK_MS } from "@/shared/constants";
 import type {
   HandoverReport,
@@ -16,8 +16,11 @@ import { ACCENT, PHASE_LABEL, SEVERITY_META, STATUS, densityState } from "@/lib/
 import { trafficAt } from "@/lib/traffic/model";
 import { useMatchStream } from "@/lib/useMatchStream";
 import { SCENARIO } from "@/lib/simulator/scenario";
+import { computeWarnings, type EarlyWarning } from "@/lib/predict";
 import { Panel, StatRow, Tag } from "@/components/primitives";
 import { VenueMap } from "@/components/venue-map";
+import { Copilot, type ToolCall } from "@/components/copilot";
+import { VoiceRadio } from "@/components/voice-radio";
 
 /** Scripted story beats, for the "next beat" jump control. */
 const BEAT_MINUTES = SCENARIO.map((b) => b.atMinute);
@@ -35,6 +38,26 @@ function triageContext(incident: Incident, events: StadiumEvent[]): StadiumEvent
   });
   const picked = (related.length > 0 ? related : events).slice(0, 15);
   return [...picked].reverse(); // chronological, most recent last
+}
+
+/** Compact one-line rendering of an event for the copilot's context window. */
+function eventToText(e: StadiumEvent): string {
+  const zone = (id: string) => DEMO_VENUE.zones.find((z) => z.id === id)?.name ?? id;
+  const gate = (id: string) => DEMO_VENUE.gates.find((g) => g.id === id)?.name ?? id;
+  switch (e.type) {
+    case "match":
+      return `${e.atMinute}′ match: ${e.phase}${e.note ? ` — ${e.note}` : ""}`;
+    case "radio-log":
+      return `${e.atMinute}′ radio (${e.channel}) ${e.from}: ${e.message}`;
+    case "gate-flow":
+      return `${e.atMinute}′ ${gate(e.gateId)}: ${e.entriesPerMinute}/min, queue ${e.queueLength}`;
+    case "crowd-density":
+      return `${e.atMinute}′ ${zone(e.zoneId)} density ${e.densityPct}%`;
+    case "medical":
+      return `${e.atMinute}′ medical in ${zone(e.zoneId)}: ${e.description}`;
+    case "weather":
+      return `${e.atMinute}′ weather: ${e.condition}, ${e.tempC}°C${e.note ? ` — ${e.note}` : ""}`;
+  }
 }
 
 export default function Dashboard() {
@@ -63,6 +86,10 @@ export default function Dashboard() {
 
   const nextBeat = BEAT_MINUTES.find((m) => m > state.minute);
   const traffic = useMemo(() => trafficAt(state.minute, state.phase), [state.minute, state.phase]);
+  const warnings = useMemo(
+    () => computeWarnings(state.events, state.minute),
+    [state.events, state.minute],
+  );
   const openIncidents = state.incidents.filter((i) => i.status !== "resolved");
   const worstDensity = useMemo(
     () => Math.max(0, ...Object.values(state.zones).map((z) => z.densityPct)),
@@ -188,6 +215,119 @@ export default function Dashboard() {
     URL.revokeObjectURL(url);
   }
 
+  /** Add an incident to the queue locally (predictive warnings, copilot). */
+  const localSeq = useRef(0);
+  function openLocalIncident(input: {
+    title: string;
+    category: Incident["category"];
+    severity: Incident["severity"];
+    zoneId?: string;
+  }): Incident {
+    const incident: Incident = {
+      id: `inc-local-${localSeq.current++}`,
+      createdAtMinute: state.minute,
+      title: input.title,
+      category: input.category,
+      severity: input.severity,
+      status: "open",
+      zoneId: input.zoneId,
+      sourceEventIds: [],
+    };
+    dispatch({ type: "message", msg: { kind: "incident", incident } });
+    return incident;
+  }
+
+  function incidentFromWarning(w: EarlyWarning) {
+    const zoneId =
+      w.kind === "zone" ? w.targetId : DEMO_VENUE.gates.find((g) => g.id === w.targetId)?.zoneId;
+    openLocalIncident({
+      title: `Projected: ${w.message.split(" (")[0]}`,
+      category: "crowd",
+      severity: "medium",
+      zoneId,
+    });
+  }
+
+  /** Voice radio reports enter the feed as radio-log events. */
+  const voiceSeq = useRef(0);
+  function handleVoice(text: string) {
+    const event: StadiumEvent = {
+      type: "radio-log",
+      id: `evt-voice-${voiceSeq.current++}`,
+      venueId: DEMO_VENUE.id,
+      atMinute: state.minute,
+      channel: "stewarding",
+      from: "Voice report",
+      message: text,
+    };
+    dispatch({ type: "message", msg: { kind: "event", event } });
+  }
+
+  /** Live state snapshot for the copilot — built at send time. */
+  function copilotSnapshot() {
+    return {
+      minute: state.minute,
+      phase: state.phase,
+      weather: forecast?.summary ?? "unknown",
+      zones: DEMO_VENUE.zones
+        .filter((z) => z.kind !== "medical")
+        .map((z) => ({ id: z.id, name: z.name, densityPct: state.zones[z.id]?.densityPct ?? 0 })),
+      gates: DEMO_VENUE.gates.map((g) => ({
+        id: g.id,
+        name: g.name,
+        entriesPerMinute: state.gates[g.id]?.entriesPerMinute ?? 0,
+        queueLength: state.gates[g.id]?.queueLength ?? 0,
+      })),
+      incidents: state.incidents.slice(0, 12).map((i) => ({
+        id: i.id,
+        title: i.title,
+        severity: i.severity,
+        status: i.status,
+        zoneId: i.zoneId,
+        aiTriageSummary: i.triage?.summary,
+      })),
+      earlyWarnings: warnings.map((w) => w.message),
+      trafficAdvisories: traffic.advisories.map((a) => a.message),
+      recentEvents: [...state.events.slice(0, 20)].reverse().map(eventToText),
+    };
+  }
+
+  /** Execute a copilot tool call; the returned line is echoed into the chat. */
+  async function runToolCall(call: ToolCall): Promise<string> {
+    switch (call.name) {
+      case "open_incident": {
+        const a = call.args as {
+          title: string;
+          category?: Incident["category"];
+          severity?: Incident["severity"];
+          zoneId?: string;
+        };
+        const incident = openLocalIncident({
+          title: a.title,
+          category: a.category ?? "other",
+          severity: a.severity ?? "medium",
+          zoneId: a.zoneId,
+        });
+        return `✓ Opened ${incident.severity} incident: ${incident.title}`;
+      }
+      case "dispatch_task": {
+        const res = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...call.args, origin: "copilot", createdAtMinute: state.minute }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "dispatch failed");
+        return `✓ Dispatched to ${data.task.role}: ${data.task.title} (P${data.task.priority}) — visible on the staff console`;
+      }
+      case "generate_briefing":
+        void generateDoc("briefing");
+        return "✓ Generating the ops briefing — opening it now";
+      default:
+        throw new Error(`Unknown tool: ${call.name}`);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#0d0d0d] text-[#c3c2b7]">
       <header className="border-b border-white/10 bg-[#1a1a19]">
@@ -288,6 +428,29 @@ export default function Dashboard() {
             </ul>
           </Panel>
 
+          <Panel title="Early warnings">
+            {warnings.length === 0 ? (
+              <p className="text-xs text-[#898781]">Trends nominal — no projected breaches.</p>
+            ) : (
+              <ul className="space-y-2.5">
+                {warnings.map((w) => (
+                  <li key={w.id} className="text-xs">
+                    <p>
+                      <span style={{ color: STATUS.warning }}>▲ Projected</span>{" "}
+                      <span className="text-[#c3c2b7]">{w.message}</span>
+                    </p>
+                    <button
+                      onClick={() => incidentFromWarning(w)}
+                      className="mt-1 rounded border border-white/10 px-2 py-0.5 text-[11px] text-white hover:bg-white/5"
+                    >
+                      Open incident pre-emptively
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+
           <Panel title="Gates">
             <div className="grid grid-cols-2 gap-2">
               {DEMO_VENUE.gates.map((gate) => {
@@ -356,7 +519,11 @@ export default function Dashboard() {
             )}
           </Panel>
 
-          <Panel title="Live feed" bodyClassName="max-h-[46vh] overflow-y-auto">
+          <Panel
+            title="Live feed"
+            action={<VoiceRadio onTranscript={handleVoice} />}
+            bodyClassName="max-h-[46vh] overflow-y-auto"
+          >
             {state.events.length === 0 ? (
               <p className="py-8 text-center text-sm text-[#898781]">Waiting for gate telemetry…</p>
             ) : (
@@ -401,6 +568,8 @@ export default function Dashboard() {
       </main>
 
       {doc && <DocOverlay doc={doc} onClose={() => setDoc(null)} />}
+
+      <Copilot snapshot={copilotSnapshot} onToolCall={runToolCall} />
 
       <footer className="mx-auto max-w-[1400px] px-5 pb-4 text-[11px] text-[#898781]">
         Simulated telemetry · AI output is generated from on-screen events only · Google PromptWars 2026

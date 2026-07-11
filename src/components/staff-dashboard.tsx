@@ -76,7 +76,20 @@ export default function StaffDashboard() {
   const [demand, setDemand] = useState<{ plan: DemandPlan; tasks: StaffTask[] } | null>(null);
   const [demandBusy, setDemandBusy] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, TaskStatus>>({});
+  const [dispatched, setDispatched] = useState<StaffTask[]>([]);
   const demandRequested = useRef(false);
+
+  // Poll the server dispatch queue (copilot/ops-side task orders).
+  useEffect(() => {
+    const load = () =>
+      fetch("/api/tasks")
+        .then((r) => r.json())
+        .then((d: { tasks?: StaffTask[] }) => setDispatched(d.tasks ?? []))
+        .catch(() => undefined);
+    void load();
+    const timer = setInterval(load, 15000);
+    return () => clearInterval(timer);
+  }, []);
 
   const traffic = useMemo(() => trafficAt(state.minute, state.phase), [state.minute, state.phase]);
 
@@ -191,9 +204,10 @@ export default function StaffDashboard() {
     }
 
     if (demand) out.push(...demand.tasks);
+    out.push(...dispatched);
 
     return out;
-  }, [state.incidents, state.minute, traffic, forecast, demand]);
+  }, [state.incidents, state.minute, traffic, forecast, demand, dispatched]);
 
   const statusOf = (t: StaffTask): TaskStatus => overrides[t.id] ?? t.status;
 
@@ -405,6 +419,7 @@ const ORIGIN_COLOR: Record<StaffTask["origin"], string> = {
   traffic: STATUS.warning,
   demand: STATUS.good,
   match: INK.muted,
+  copilot: "#9085e9", // violet — ops-side AI dispatch
 };
 
 function TaskCard({

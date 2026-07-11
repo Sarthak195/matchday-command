@@ -20,6 +20,9 @@ The app has **two personas**: an **ops control room** (`/`) for the duty manager
 4. **Approach traffic & routing** — a live **Google Map** with real-time traffic (when a Maps key is present; a schematic fallback otherwise) shows approach-corridor congestion, parking-lot fill, and AI-style routing advisories ("steer arrivals to Ring Road, direct parking to Lot C").
 5. **Weather-driven demand forecasting** — real forecast via **Open-Meteo** (keyless) feeds Gemini, which predicts supply demand (umbrellas, ponchos, water, cold drinks, hot food, fans, blankets) against on-hand stock and flags shortfalls.
 6. **Staff dispatch console** — the system doesn't just watch, it *acts*: prep/stocking orders, traffic advisories, weather readiness, and incident response are dispatched as role-grouped tasks with an ack → in-progress → done lifecycle.
+7. **Control-room copilot (agentic)** — a chat that answers from live state *and takes actions via Gemini function calling*: "tell catering to start hot food prep" dispatches a real task to the staff console; it can also open incidents and trigger briefings.
+8. **Predictive early warnings** — trend projection over live telemetry warns *before* thresholds break: "North Concourse on track to hit 85% in ~9 min" — with one-click pre-emptive incident creation.
+9. **Voice radio reports** — push-to-talk (browser Web Speech API, keyless): a spoken steward report lands in the live feed and flows into AI triage like any other signal.
 
 ## Architecture
 
@@ -87,6 +90,9 @@ gcloud run deploy matchday-command --source . --region asia-south1 \
 - [x] Approach traffic map (Google Maps live traffic + schematic fallback)
 - [x] Weather-driven demand forecasting (Open-Meteo + Gemini)
 - [x] Staff dispatch console (`/staff`) with role-grouped task board
+- [x] Agentic copilot chat (Gemini function calling → open incidents, dispatch tasks, briefings)
+- [x] Predictive early warnings (trend projection ahead of threshold breaches)
+- [x] Push-to-talk voice radio reports (Web Speech API)
 
 ## License
 
