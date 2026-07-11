@@ -2,6 +2,8 @@
 
 **AI incident command copilot for smart stadiums and tournament operations.**
 
+**Live demo:** https://matchday-command-1069049902747.asia-south1.run.app
+
 Built solo for **Google PromptWars** (theme: Smart Stadiums & Tournament Operations). While most stadium AI targets fans, MatchDay Command sits on the other side of the glass — in the operations control room. Live gate, crowd, radio, medical, and weather signals stream into one dashboard; **Gemini** triages incidents, recommends staff actions, and writes the operational briefings and shift-handover reports that ops teams produce by hand today.
 
 ## Why this matters
@@ -63,7 +65,7 @@ gcloud run deploy matchday-command --source . --region asia-south1 \
 - [ ] Incident detection rules (density/queue thresholds → auto-open incidents)
 - [ ] Briefing + shift handover generation
 - [ ] Baseline simulator noise (arrival curves) so anomalies pop
-- [ ] Cloud Run deployment + demo link here
+- [x] Cloud Run deployment ([live demo](https://matchday-command-1069049902747.asia-south1.run.app))
 
 ## License
 
