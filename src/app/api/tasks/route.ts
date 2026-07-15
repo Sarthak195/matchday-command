@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { addTask, listTasks } from "@/lib/store";
+import { rateLimitResponse } from "@/lib/rate-limit";
 import { clampPriority, STAFF_ROLES, type StaffRole, type TaskOrigin } from "@/shared/models";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,9 @@ interface TaskInput {
 }
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimitResponse(req, "tasks", { limit: 60, windowMs: 60_000 });
+  if (limited) return limited;
+
   let body: TaskInput;
   try {
     body = (await req.json()) as TaskInput;

@@ -5,18 +5,17 @@ import { DEMO_VENUE, VENUE_LOCATION } from "@/shared/constants";
 import type { LatLng, TrafficState } from "@/shared/models";
 import { CONGESTION_COLOR, STATUS } from "@/lib/theme";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// Google Maps objects are untyped here (no @types/google.maps dep); kept local.
+// The Maps JS API is typed via src/types/google-maps.d.ts (a minimal local
+// surface, so we avoid the full @types/google.maps dependency).
 
-let mapsPromise: Promise<any> | null = null;
+let mapsPromise: Promise<GoogleMapsApi> | null = null;
 
-function loadGoogleMaps(key: string): Promise<any> {
+function loadGoogleMaps(key: string): Promise<GoogleMapsApi> {
   if (typeof window === "undefined") return Promise.reject(new Error("no window"));
-  const w = window as any;
-  if (w.google?.maps) return Promise.resolve(w.google.maps);
+  if (window.google?.maps) return Promise.resolve(window.google.maps);
   if (mapsPromise) return mapsPromise;
   mapsPromise = new Promise((resolve, reject) => {
-    w.__mdcMapInit = () => resolve(w.google.maps);
+    window.__mdcMapInit = () => resolve(window.google!.maps);
     const s = document.createElement("script");
     s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&callback=__mdcMapInit&v=weekly`;
     s.async = true;
@@ -44,9 +43,9 @@ function lotColor(ratio: number): string {
 export function VenueMap({ traffic }: { traffic: TrafficState }) {
   const [mode, setMode] = useState<"loading" | "google" | "sim">("loading");
   const divRef = useRef<HTMLDivElement>(null);
-  const mapsRef = useRef<any>(null);
-  const mapRef = useRef<any>(null);
-  const overlaysRef = useRef<any[]>([]);
+  const mapsRef = useRef<GoogleMapsApi | null>(null);
+  const mapRef = useRef<GMap | null>(null);
+  const overlaysRef = useRef<GMapOverlay[]>([]);
   const trafficRef = useRef(traffic);
   trafficRef.current = traffic;
 
@@ -64,19 +63,16 @@ export function VenueMap({ traffic }: { traffic: TrafficState }) {
           .then((maps) => {
             if (cancelled || !divRef.current) return;
             mapsRef.current = maps;
-            mapRef.current = new maps.Map(divRef.current, {
+            const map = new maps.Map(divRef.current, {
               center: VENUE_LOCATION,
               zoom: 14,
               disableDefaultUI: true,
               zoomControl: true,
               styles: DARK_STYLE,
             });
-            new maps.TrafficLayer().setMap(mapRef.current);
-            new maps.Marker({
-              position: VENUE_LOCATION,
-              map: mapRef.current,
-              title: DEMO_VENUE.name,
-            });
+            mapRef.current = map;
+            new maps.TrafficLayer().setMap(map);
+            new maps.Marker({ position: VENUE_LOCATION, map, title: DEMO_VENUE.name });
             setMode("google");
             drawOverlays();
           })
@@ -86,7 +82,7 @@ export function VenueMap({ traffic }: { traffic: TrafficState }) {
     return () => {
       cancelled = true;
       // Detach the drawn overlays so they don't leak when the map unmounts.
-      overlaysRef.current.forEach((o) => o.setMap?.(null));
+      overlaysRef.current.forEach((o) => o.setMap(null));
       overlaysRef.current = [];
       mapRef.current = null;
       mapsRef.current = null;
@@ -179,7 +175,12 @@ function SchematicMap({ traffic }: { traffic: TrafficState }) {
   const venue = px(VENUE_LOCATION);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-[300px] w-full bg-[#0d0d0d]" role="img" aria-label="Venue approach schematic">
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="h-[300px] w-full bg-[#0d0d0d]"
+      role="img"
+      aria-label="Venue approach schematic"
+    >
       <rect width={W} height={H} fill="#0d0d0d" />
       {traffic.corridors.map((c) => {
         const edge = px(c.path[0]);
@@ -206,7 +207,15 @@ function SchematicMap({ traffic }: { traffic: TrafficState }) {
         const ratio = l.occupancy / l.capacity;
         return (
           <g key={l.id}>
-            <rect x={p.x - 12} y={p.y - 12} width={24} height={24} rx={4} fill={lotColor(ratio)} opacity={0.85} />
+            <rect
+              x={p.x - 12}
+              y={p.y - 12}
+              width={24}
+              height={24}
+              rx={4}
+              fill={lotColor(ratio)}
+              opacity={0.85}
+            />
             <text x={p.x} y={p.y + 26} fill="#898781" fontSize={10} textAnchor="middle">
               {Math.round(ratio * 100)}%
             </text>
@@ -214,7 +223,14 @@ function SchematicMap({ traffic }: { traffic: TrafficState }) {
         );
       })}
       <circle cx={venue.x} cy={venue.y} r={9} fill="#3987e5" stroke="#ffffff" strokeWidth={2} />
-      <text x={venue.x} y={venue.y - 14} fill="#ffffff" fontSize={11} textAnchor="middle" fontWeight="600">
+      <text
+        x={venue.x}
+        y={venue.y - 14}
+        fill="#ffffff"
+        fontSize={11}
+        textAnchor="middle"
+        fontWeight="600"
+      >
         {DEMO_VENUE.name}
       </text>
     </svg>

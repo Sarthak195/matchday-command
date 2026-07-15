@@ -17,9 +17,7 @@ import { SimulationEngine } from "./engine";
 type Send = (msg: StreamMessage) => void;
 
 export type SimControl =
-  | { type: "speed"; tickMs: number }
-  | { type: "jump"; toMinute: number }
-  | { type: "restart" };
+  { type: "speed"; tickMs: number } | { type: "jump"; toMinute: number } | { type: "restart" };
 
 const MAX_MINUTE = 200;
 const EVENT_LOG_CAP = 500;

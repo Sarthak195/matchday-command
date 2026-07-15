@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { Type } from "@google/genai";
 import { geminiErrorMessage, generateJson } from "@/lib/gemini";
+import { rateLimitResponse } from "@/lib/rate-limit";
 import { DEMO_VENUE } from "@/shared/constants";
 import {
   clampPriority,
@@ -86,6 +87,9 @@ interface GeneratedDemand {
 
 /** POST weather + attendance + phase; returns a DemandPlan and prep StaffTasks. */
 export async function POST(req: NextRequest) {
+  const limited = rateLimitResponse(req, "demand", { limit: 20, windowMs: 60_000 });
+  if (limited) return limited;
+
   let body: DemandRequest;
   try {
     body = (await req.json()) as DemandRequest;
@@ -111,7 +115,11 @@ export async function POST(req: NextRequest) {
   ].join("\n");
 
   try {
-    const gen = await generateJson<GeneratedDemand>({ system: SYSTEM, prompt, schema: DEMAND_SCHEMA });
+    const gen = await generateJson<GeneratedDemand>({
+      system: SYSTEM,
+      prompt,
+      schema: DEMAND_SCHEMA,
+    });
 
     const lines: DemandLine[] = gen.lines.map((l) => ({
       ...l,

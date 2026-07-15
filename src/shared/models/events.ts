@@ -51,12 +51,7 @@ export interface WeatherEvent extends BaseEvent {
 }
 
 export type MatchPhase =
-  | "gates-open"
-  | "kickoff"
-  | "goal"
-  | "halftime"
-  | "second-half"
-  | "fulltime";
+  "gates-open" | "kickoff" | "goal" | "halftime" | "second-half" | "fulltime";
 
 export interface MatchEvent extends BaseEvent {
   type: "match";
@@ -75,11 +70,6 @@ export function nextPhase(current: MatchPhase, event: MatchEvent): MatchPhase {
 }
 
 export type StadiumEvent =
-  | GateFlowEvent
-  | CrowdDensityEvent
-  | RadioLogEvent
-  | MedicalEvent
-  | WeatherEvent
-  | MatchEvent;
+  GateFlowEvent | CrowdDensityEvent | RadioLogEvent | MedicalEvent | WeatherEvent | MatchEvent;
 
 export type StadiumEventType = StadiumEvent["type"];

@@ -147,7 +147,8 @@ export default function StaffDashboard() {
         createdAtMinute: inc.createdAtMinute,
         role: roleForCategory(inc.category),
         title: inc.title,
-        detail: inc.triage?.summary ?? `Respond to ${inc.category} incident. Triage pending in ops.`,
+        detail:
+          inc.triage?.summary ?? `Respond to ${inc.category} incident. Triage pending in ops.`,
         priority: priorityFromSeverity(inc.severity),
         origin: "incident",
         status: "pending",
@@ -168,7 +169,10 @@ export default function StaffDashboard() {
     }
 
     if (forecast) {
-      const wet = forecast.precipProbPct >= 60 || forecast.condition === "rain" || forecast.condition === "storm";
+      const wet =
+        forecast.precipProbPct >= 60 ||
+        forecast.condition === "rain" ||
+        forecast.condition === "storm";
       const hot = forecast.condition === "heat" || forecast.tempC >= 34;
       const cold = forecast.condition === "cold" || forecast.tempC <= 12;
       if (wet)
@@ -177,7 +181,8 @@ export default function StaffDashboard() {
           createdAtMinute: state.minute,
           role: "facilities",
           title: "Wet-weather readiness",
-          detail: "Open poncho points at both concourses, cover walkways, check drainage and roof runoff.",
+          detail:
+            "Open poncho points at both concourses, cover walkways, check drainage and roof runoff.",
           priority: 1,
           origin: "weather",
           status: "pending",
@@ -189,7 +194,8 @@ export default function StaffDashboard() {
           createdAtMinute: state.minute,
           role: "concessions",
           title: "Heat readiness",
-          detail: "Push water and cold drinks to forward stands, run misting fans, brief medical on heat cases.",
+          detail:
+            "Push water and cold drinks to forward stands, run misting fans, brief medical on heat cases.",
           priority: 1,
           origin: "weather",
           status: "pending",
@@ -238,12 +244,13 @@ export default function StaffDashboard() {
       <header className="border-b border-white/10 bg-[#1a1a19]">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3">
           <div>
-            <h1 className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
+            <h1
+              className="text-[11px] font-semibold uppercase tracking-[0.2em]"
+              style={{ color: ACCENT }}
+            >
               MatchDay Command · Staff console
             </h1>
-            <p className="text-xs text-[#898781]">
-              {DEMO_VENUE.name} · your tasks for this shift
-            </p>
+            <p className="text-xs text-[#898781]">{DEMO_VENUE.name} · your tasks for this shift</p>
           </div>
           <div className="flex items-baseline gap-3">
             <span className="text-3xl font-semibold text-white">{state.minute}&prime;</span>
@@ -283,7 +290,9 @@ export default function StaffDashboard() {
             {forecast ? (
               <div>
                 <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-semibold text-white">{Math.round(forecast.tempC)}°C</span>
+                  <span className="text-2xl font-semibold text-white">
+                    {Math.round(forecast.tempC)}°C
+                  </span>
                   <span className="text-sm capitalize text-[#c3c2b7]">{forecast.condition}</span>
                 </div>
                 <p className="mt-1 text-xs text-[#898781]">{forecast.summary}</p>
@@ -292,11 +301,17 @@ export default function StaffDashboard() {
                 </p>
                 <div className="mt-3 flex gap-2">
                   {forecast.horizon.map((h) => (
-                    <div key={h.label} className="flex-1 rounded border border-white/10 bg-[#0d0d0d] p-2 text-center">
+                    <div
+                      key={h.label}
+                      className="flex-1 rounded border border-white/10 bg-[#0d0d0d] p-2 text-center"
+                    >
                       <p className="text-[10px] text-[#898781]">{h.label}</p>
                       <p className="text-sm font-semibold text-white">{Math.round(h.tempC)}°</p>
                       <p className="text-[10px] capitalize text-[#898781]">{h.condition}</p>
-                      <p className="text-[10px]" style={{ color: h.precipProbPct >= 50 ? STATUS.warning : INK.muted }}>
+                      <p
+                        className="text-[10px]"
+                        style={{ color: h.precipProbPct >= 50 ? STATUS.warning : INK.muted }}
+                      >
                         {h.precipProbPct}%
                       </p>
                     </div>
@@ -310,7 +325,13 @@ export default function StaffDashboard() {
 
           <Panel
             title="Demand forecast"
-            action={demand ? <span className="text-[10px] text-[#898781]">min {demand.plan.generatedAtMinute}</span> : undefined}
+            action={
+              demand ? (
+                <span className="text-[10px] text-[#898781]">
+                  min {demand.plan.generatedAtMinute}
+                </span>
+              ) : undefined
+            }
           >
             {demand ? (
               <div>
@@ -331,8 +352,12 @@ export default function StaffDashboard() {
                         .map((l) => (
                           <tr key={l.item} className="border-t border-white/5">
                             <td className="py-1 capitalize text-[#c3c2b7]">{itemLabel(l.item)}</td>
-                            <td className="py-1 text-right tabular-nums text-white">{l.predictedUnits.toLocaleString()}</td>
-                            <td className="py-1 text-right tabular-nums text-[#898781]">{l.currentStock.toLocaleString()}</td>
+                            <td className="py-1 text-right tabular-nums text-white">
+                              {l.predictedUnits.toLocaleString()}
+                            </td>
+                            <td className="py-1 text-right tabular-nums text-[#898781]">
+                              {l.currentStock.toLocaleString()}
+                            </td>
                             <td
                               className="py-1 text-right font-semibold tabular-nums"
                               style={{ color: l.gap > 0 ? STATUS.serious : STATUS.good }}
@@ -370,7 +395,8 @@ export default function StaffDashboard() {
           <Panel title={`Task board · ${activeTasks.length} active`} bodyClassName="min-h-[60vh]">
             {byRole.length === 0 ? (
               <p className="py-10 text-center text-sm text-[#898781]">
-                No open tasks — the system dispatches prep, stocking, traffic, and incident tasks here as they arise.
+                No open tasks — the system dispatches prep, stocking, traffic, and incident tasks
+                here as they arise.
               </p>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -384,7 +410,12 @@ export default function StaffDashboard() {
                     </h3>
                     <ul className="space-y-2">
                       {roleTasks.map((t) => (
-                        <TaskCard key={t.id} task={t} status={statusOf(t)} onAdvance={() => advance(t)} />
+                        <TaskCard
+                          key={t.id}
+                          task={t}
+                          status={statusOf(t)}
+                          onAdvance={() => advance(t)}
+                        />
                       ))}
                     </ul>
                   </div>
@@ -396,7 +427,8 @@ export default function StaffDashboard() {
       </main>
 
       <footer className="mx-auto max-w-[1400px] px-5 pb-4 text-[11px] text-[#898781]">
-        Tasks dispatched from live incidents, weather, traffic, and the AI demand plan · Google PromptWars 2026
+        Tasks dispatched from live incidents, weather, traffic, and the AI demand plan · Google
+        PromptWars 2026
       </footer>
     </div>
   );

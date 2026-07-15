@@ -29,9 +29,33 @@ export const TOURNAMENT_VENUES: TournamentVenue[] = [
     seed: 1,
     live: true,
   },
-  { id: "lakeside", name: "Lakeside Stadium", city: "Bhopal", capacity: 38000, clockOffsetMin: 35, seed: 2, live: false },
-  { id: "garrison", name: "Garrison Park", city: "Jabalpur", capacity: 30000, clockOffsetMin: -20, seed: 3, live: false },
-  { id: "riverbend", name: "River Bend Arena", city: "Ujjain", capacity: 26000, clockOffsetMin: -50, seed: 4, live: false },
+  {
+    id: "lakeside",
+    name: "Lakeside Stadium",
+    city: "Bhopal",
+    capacity: 38000,
+    clockOffsetMin: 35,
+    seed: 2,
+    live: false,
+  },
+  {
+    id: "garrison",
+    name: "Garrison Park",
+    city: "Jabalpur",
+    capacity: 30000,
+    clockOffsetMin: -20,
+    seed: 3,
+    live: false,
+  },
+  {
+    id: "riverbend",
+    name: "River Bend Arena",
+    city: "Ujjain",
+    capacity: 26000,
+    clockOffsetMin: -50,
+    seed: 4,
+    live: false,
+  },
 ];
 
 export interface VenueSummary {
@@ -75,7 +99,12 @@ export function venueSummary(venue: TournamentVenue, sharedMinute: number): Venu
 
   // Incident count drifts up through the day, venue-flavored.
   const openIncidents =
-    m <= 10 ? 0 : Math.max(0, Math.floor((m / 55) * (1.4 + noise(venue.seed, 7) * 2)) - (phase === "fulltime" ? 1 : 0));
+    m <= 10
+      ? 0
+      : Math.max(
+          0,
+          Math.floor((m / 55) * (1.4 + noise(venue.seed, 7) * 2)) - (phase === "fulltime" ? 1 : 0),
+        );
 
   const insideEst = Math.round(venue.capacity * 0.88 * fillFrac);
 
@@ -90,5 +119,14 @@ export function venueSummary(venue: TournamentVenue, sharedMinute: number): Venu
             ? "Egress underway"
             : "Nominal";
 
-  return { venueId: venue.id, localMinute: Math.max(0, m), phase, phaseLabel: label, worstDensityPct, openIncidents, insideEst, statusLine };
+  return {
+    venueId: venue.id,
+    localMinute: Math.max(0, m),
+    phase,
+    phaseLabel: label,
+    worstDensityPct,
+    openIncidents,
+    insideEst,
+    statusLine,
+  };
 }

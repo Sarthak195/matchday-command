@@ -1,10 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getLiveMatch, type SimControl } from "@/lib/simulator/live";
+import { rateLimitResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 /** Global controls for THE shared match: speed, jump-to-minute, restart. */
 export async function POST(req: NextRequest) {
+  const limited = rateLimitResponse(req, "sim", { limit: 30, windowMs: 60_000 });
+  if (limited) return limited;
+
   let body: SimControl;
   try {
     body = (await req.json()) as SimControl;

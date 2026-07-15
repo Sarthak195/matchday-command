@@ -7,19 +7,26 @@ import type {
   EvacuationPlan,
   HandoverReport,
   Incident,
-  MatchPhase,
   OpsBriefing,
   StadiumEvent,
   TriageResult,
   WeatherForecast,
 } from "@/shared/models";
-import { ACCENT, PHASE_LABEL, SEVERITY_META, STATUS, densityState } from "@/lib/theme";
+import {
+  ACCENT,
+  CRITICAL_TEXT,
+  PHASE_LABEL,
+  SEVERITY_META,
+  STATUS,
+  densityState,
+} from "@/lib/theme";
 import { trafficAt } from "@/lib/traffic/model";
 import { insideEstimate, useMatchStream, worstDensityPct } from "@/lib/useMatchStream";
 import { SCENARIO } from "@/lib/simulator/scenario";
 import { computeWarnings, type EarlyWarning } from "@/lib/predict";
-import { Panel, StatRow, Tag } from "@/components/primitives";
+import { Panel, StatRow } from "@/components/primitives";
 import { Modal } from "@/components/modal";
+import { DocOverlay, EventLine, IncidentCard } from "@/components/dashboard-parts";
 import { VenueMap } from "@/components/venue-map";
 import { Copilot, type ToolCall } from "@/components/copilot";
 import { VoiceRadio } from "@/components/voice-radio";
@@ -35,7 +42,8 @@ function triageContext(incident: Incident, events: StadiumEvent[]): StadiumEvent
       const gate = DEMO_VENUE.gates.find((g) => g.id === e.gateId);
       if (gate?.zoneId === incident.zoneId) return true;
     }
-    if (e.type === "radio-log" && Math.abs(e.atMinute - incident.createdAtMinute) <= 10) return true;
+    if (e.type === "radio-log" && Math.abs(e.atMinute - incident.createdAtMinute) <= 10)
+      return true;
     return incident.sourceEventIds.includes(e.id);
   });
   const picked = (related.length > 0 ? related : events).slice(0, 15);
@@ -67,7 +75,10 @@ export default function Dashboard() {
   const [speed, setSpeed] = useState(SIM_TICK_MS);
 
   /** Sim controls are GLOBAL — every connected view follows the shared match. */
-  async function simControl(body: { type: "speed"; tickMs: number } | { type: "jump"; toMinute: number } | { type: "restart" }) {
+  async function simControl(
+    body:
+      { type: "speed"; tickMs: number } | { type: "jump"; toMinute: number } | { type: "restart" },
+  ) {
     try {
       await fetch("/api/sim", {
         method: "POST",
@@ -147,7 +158,10 @@ export default function Dashboard() {
   }
 
   async function generateDoc(type: "briefing" | "handover") {
-    setDoc({ kind: "loading", label: type === "briefing" ? "Writing ops briefing…" : "Writing handover…" });
+    setDoc({
+      kind: "loading",
+      label: type === "briefing" ? "Writing ops briefing…" : "Writing handover…",
+    });
     try {
       const res = await fetch(`/api/briefing${type === "handover" ? "?type=handover" : ""}`, {
         method: "POST",
@@ -416,7 +430,10 @@ export default function Dashboard() {
       <header className="border-b border-white/10 bg-[#1a1a19]">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3">
           <div>
-            <h1 className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
+            <h1
+              className="text-[11px] font-semibold uppercase tracking-[0.2em]"
+              style={{ color: ACCENT }}
+            >
               MatchDay Command
             </h1>
             <p className="text-xs text-[#898781]">
@@ -454,7 +471,9 @@ export default function Dashboard() {
               </select>
             </label>
             <button
-              onClick={() => nextBeat !== undefined && void simControl({ type: "jump", toMinute: nextBeat })}
+              onClick={() =>
+                nextBeat !== undefined && void simControl({ type: "jump", toMinute: nextBeat })
+              }
               disabled={nextBeat === undefined}
               title="Fast-forward the shared match to the next scripted story beat (all views follow)"
               className="rounded border border-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/5 disabled:opacity-40"
@@ -531,7 +550,10 @@ export default function Dashboard() {
                           <span style={{ color: s.color }}>{s.label}</span>
                         </span>
                       </div>
-                      <div className="h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: `${s.color}33` }}>
+                      <div
+                        className="h-1.5 overflow-hidden rounded-full"
+                        style={{ backgroundColor: `${s.color}33` }}
+                      >
                         <div
                           className="h-full rounded-full transition-[width] duration-500"
                           style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: s.color }}
@@ -581,11 +603,13 @@ export default function Dashboard() {
                   <div
                     key={gate.id}
                     className="rounded border border-white/10 bg-[#0d0d0d] p-2.5"
-                    style={{ borderLeft: `2px solid ${emergencyActive ? STATUS.critical : qs.color}` }}
+                    style={{
+                      borderLeft: `2px solid ${emergencyActive ? STATUS.critical : qs.color}`,
+                    }}
                   >
                     <p className="text-xs text-[#898781]">{gate.name}</p>
                     {emergencyActive ? (
-                      <p className="text-lg font-semibold" style={{ color: STATUS.critical }}>
+                      <p className="text-lg font-semibold" style={{ color: CRITICAL_TEXT }}>
                         EGRESS
                       </p>
                     ) : (
@@ -611,7 +635,9 @@ export default function Dashboard() {
             {forecast ? (
               <div>
                 <div className="flex items-baseline justify-between">
-                  <span className="text-xl font-semibold text-white">{Math.round(forecast.tempC)}°C</span>
+                  <span className="text-xl font-semibold text-white">
+                    {Math.round(forecast.tempC)}°C
+                  </span>
                   <span className="text-sm capitalize text-[#c3c2b7]">{forecast.condition}</span>
                 </div>
                 <p className="mt-1 text-xs text-[#898781]">{forecast.summary}</p>
@@ -639,11 +665,16 @@ export default function Dashboard() {
               <ul className="mt-3 space-y-1.5">
                 {traffic.advisories.map((a) => (
                   <li key={a.id} className="flex gap-2 text-xs">
-                    <span aria-hidden="true" style={{ color: a.severity === "warning" ? STATUS.warning : STATUS.good }}>
+                    <span
+                      aria-hidden="true"
+                      style={{ color: a.severity === "warning" ? STATUS.warning : STATUS.good }}
+                    >
                       {a.severity === "warning" ? "▲" : "●"}
                     </span>
                     <span className="text-[#c3c2b7]">
-                      <span className="sr-only">{a.severity === "warning" ? "Warning: " : "Advisory: "}</span>
+                      <span className="sr-only">
+                        {a.severity === "warning" ? "Warning: " : "Advisory: "}
+                      </span>
                       {a.message}
                     </span>
                   </li>
@@ -656,6 +687,11 @@ export default function Dashboard() {
             title="Live feed"
             action={<VoiceRadio onTranscript={handleVoice} />}
             bodyClassName="max-h-[46vh] overflow-y-auto"
+            bodyProps={{
+              tabIndex: 0,
+              role: "region",
+              "aria-label": "Live event feed (scrollable)",
+            }}
           >
             {state.events.length === 0 ? (
               <p className="py-8 text-center text-sm text-[#898781]">Waiting for gate telemetry…</p>
@@ -685,14 +721,22 @@ export default function Dashboard() {
               No incidents — feed nominal. Rules open incidents automatically.
             </p>
           ) : (
-            <ul className="space-y-3" role="log" aria-live="polite" aria-relevant="additions" aria-label="Incident queue">
+            <ul
+              className="space-y-3"
+              role="log"
+              aria-live="polite"
+              aria-relevant="additions"
+              aria-label="Incident queue"
+            >
               {state.incidents.map((incident) => (
                 <IncidentCard
                   key={incident.id}
                   incident={incident}
                   busy={triaging.has(incident.id)}
                   onTriage={() => runTriage(incident)}
-                  onStatus={(status) => dispatch({ type: "status", incidentId: incident.id, status })}
+                  onStatus={(status) =>
+                    dispatch({ type: "status", incidentId: incident.id, status })
+                  }
                 />
               ))}
             </ul>
@@ -708,7 +752,7 @@ export default function Dashboard() {
           label="Declare a major incident"
           className="w-full max-w-md rounded-lg border border-white/10 bg-[#1a1a19] p-5"
         >
-          <p className="text-sm font-semibold" style={{ color: STATUS.critical }}>
+          <p className="text-sm font-semibold" style={{ color: CRITICAL_TEXT }}>
             ⚠ Declare a major incident?
           </p>
           <p className="mt-2 text-sm text-[#c3c2b7]">
@@ -740,264 +784,63 @@ export default function Dashboard() {
           className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg border bg-[#1a1a19] p-5"
           style={{ borderColor: `${STATUS.critical}66` }}
         >
-            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: STATUS.critical }}>
-              Evacuation plan · minute {emergency.plan.generatedAtMinute}
+          <p
+            className="text-[11px] font-semibold uppercase tracking-wider"
+            style={{ color: CRITICAL_TEXT }}
+          >
+            Evacuation plan · minute {emergency.plan.generatedAtMinute}
+          </p>
+          <div className="mt-3 rounded border border-white/10 bg-[#0d0d0d] p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-[#898781]">
+              PA announcement — read verbatim
             </p>
-            <div className="mt-3 rounded border border-white/10 bg-[#0d0d0d] p-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#898781]">
-                PA announcement — read verbatim
-              </p>
-              <p className="mt-1 whitespace-pre-wrap text-sm italic text-white">
-                “{emergency.plan.paAnnouncement}”
-              </p>
-            </div>
-            <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-[#898781]">
-              Command summary
-            </h4>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-[#c3c2b7]">
-              {emergency.plan.commandSummary}
+            <p className="mt-1 whitespace-pre-wrap text-sm italic text-white">
+              “{emergency.plan.paAnnouncement}”
             </p>
-            <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-[#898781]">
-              Zone orders (in sequence)
-            </h4>
-            <ul className="mt-1 space-y-1.5">
-              {[...emergency.plan.zoneOrders]
-                .sort((a, b) => a.priority - b.priority)
-                .map((o) => (
-                  <li key={o.zoneId} className="flex gap-2 text-sm">
-                    <span className="mt-px h-4 w-4 shrink-0 rounded-full border border-white/20 text-center text-[10px] leading-4 text-white">
-                      {o.priority}
-                    </span>
-                    <span>
-                      <span className="font-medium text-white">{o.zoneName}:</span>{" "}
-                      <span className="text-[#c3c2b7]">{o.instruction}</span>{" "}
-                      <span className="text-[#898781]">→ {o.exitVia}</span>
-                    </span>
-                  </li>
-                ))}
-            </ul>
-            <p className="mt-3 text-xs text-[#898781]">
-              Staff work orders were dispatched to the staff console automatically.
-            </p>
-            <button
-              onClick={() => setEmergency((e) => ({ ...e, showPlan: false }))}
-              className="mt-4 rounded border border-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/5"
-            >
-              Close
-            </button>
+          </div>
+          <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-[#898781]">
+            Command summary
+          </h4>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-[#c3c2b7]">
+            {emergency.plan.commandSummary}
+          </p>
+          <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-[#898781]">
+            Zone orders (in sequence)
+          </h4>
+          <ul className="mt-1 space-y-1.5">
+            {[...emergency.plan.zoneOrders]
+              .sort((a, b) => a.priority - b.priority)
+              .map((o) => (
+                <li key={o.zoneId} className="flex gap-2 text-sm">
+                  <span className="mt-px h-4 w-4 shrink-0 rounded-full border border-white/20 text-center text-[10px] leading-4 text-white">
+                    {o.priority}
+                  </span>
+                  <span>
+                    <span className="font-medium text-white">{o.zoneName}:</span>{" "}
+                    <span className="text-[#c3c2b7]">{o.instruction}</span>{" "}
+                    <span className="text-[#898781]">→ {o.exitVia}</span>
+                  </span>
+                </li>
+              ))}
+          </ul>
+          <p className="mt-3 text-xs text-[#898781]">
+            Staff work orders were dispatched to the staff console automatically.
+          </p>
+          <button
+            onClick={() => setEmergency((e) => ({ ...e, showPlan: false }))}
+            className="mt-4 rounded border border-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/5"
+          >
+            Close
+          </button>
         </Modal>
       )}
 
       <Copilot snapshot={copilotSnapshot} onToolCall={runToolCall} />
 
       <footer className="mx-auto max-w-[1400px] px-5 pb-4 text-[11px] text-[#898781]">
-        Simulated telemetry · AI output is generated from on-screen events only · Google PromptWars 2026
+        Simulated telemetry · AI output is generated from on-screen events only · Google PromptWars
+        2026
       </footer>
     </div>
-  );
-}
-
-function EventLine({ event }: { event: StadiumEvent }) {
-  const zone = (id: string) => DEMO_VENUE.zones.find((z) => z.id === id)?.name ?? id;
-  const gate = (id: string) => DEMO_VENUE.gates.find((g) => g.id === id)?.name ?? id;
-  const phaseLabel = (p: MatchPhase) => PHASE_LABEL[p];
-  switch (event.type) {
-    case "match":
-      return (
-        <span className="text-white">
-          <Tag>Match</Tag> {phaseLabel(event.phase)}
-          {event.phase === "goal" && " — GOAL"}
-          {event.note ? <span className="text-[#898781]"> · {event.note}</span> : null}
-        </span>
-      );
-    case "radio-log":
-      return (
-        <span>
-          <Tag>{event.channel}</Tag> <span className="text-white">{event.from}:</span> {event.message}
-        </span>
-      );
-    case "gate-flow":
-      return (
-        <span>
-          <Tag>Gate</Tag> {gate(event.gateId)} · {event.entriesPerMinute}/min · queue {event.queueLength}
-        </span>
-      );
-    case "crowd-density":
-      return (
-        <span>
-          <Tag>Density</Tag> {zone(event.zoneId)} at {event.densityPct}%
-        </span>
-      );
-    case "medical":
-      return (
-        <span>
-          <Tag>Medical</Tag> {event.description} · {zone(event.zoneId)}
-          {event.severityHint ? <span className="text-[#898781]"> · {event.severityHint}</span> : null}
-        </span>
-      );
-    case "weather":
-      return (
-        <span>
-          <Tag>Weather</Tag> {event.condition}, {event.tempC}°C
-          {event.note ? <span className="text-[#898781]"> · {event.note}</span> : null}
-        </span>
-      );
-  }
-}
-
-function IncidentCard({
-  incident,
-  busy,
-  onTriage,
-  onStatus,
-}: {
-  incident: Incident;
-  busy: boolean;
-  onTriage: () => void;
-  onStatus: (status: Incident["status"]) => void;
-}) {
-  const sev = SEVERITY_META[incident.severity];
-  const resolved = incident.status === "resolved";
-  return (
-    <li
-      className={`rounded-lg border border-white/10 bg-[#0d0d0d] p-3 ${resolved ? "opacity-50" : ""}`}
-      style={{ borderLeft: `2px solid ${sev.color}` }}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-xs">
-            <span className="font-semibold" style={{ color: sev.color }}>
-              ● {sev.label}
-            </span>{" "}
-            <span className="text-[#898781]">
-              · {incident.category} · {incident.createdAtMinute}&prime; · {incident.status}
-            </span>
-          </p>
-          <p className="mt-0.5 text-sm font-medium text-white">{incident.title}</p>
-        </div>
-      </div>
-
-      {incident.triage ? (
-        <div className="mt-2 rounded border border-white/10 bg-[#1a1a19] p-2.5 text-xs">
-          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: ACCENT }}>
-            AI triage
-          </p>
-          <p className="mt-1 text-[#c3c2b7]">{incident.triage.summary}</p>
-          <p className="mt-1 text-[#898781]">{incident.triage.rationale}</p>
-          <ul className="mt-2 space-y-1.5">
-            {incident.triage.recommendedActions.map((a, i) => (
-              <li key={i} className="flex gap-2">
-                <span className="mt-px h-4 w-4 shrink-0 rounded-full border border-white/20 text-center text-[10px] leading-4 text-white">
-                  {a.priority}
-                </span>
-                <span>
-                  <span className="text-white">{a.action}</span> <Tag>{a.assignTo}</Tag>
-                </span>
-              </li>
-            ))}
-          </ul>
-          {incident.triage.escalate && (
-            <p className="mt-2 font-semibold" style={{ color: STATUS.critical }}>
-              ▲ Escalate to venue director
-            </p>
-          )}
-        </div>
-      ) : null}
-
-      {!resolved && (
-        <div className="mt-2 flex gap-2">
-          {!incident.triage && (
-            <button
-              onClick={onTriage}
-              disabled={busy}
-              className="rounded bg-[#1c5cab] px-2.5 py-1 text-xs font-medium text-white hover:bg-[#256abf] disabled:opacity-60"
-            >
-              {busy ? "Triaging…" : "AI triage"}
-            </button>
-          )}
-          {incident.status === "open" && (
-            <button
-              onClick={() => onStatus("acknowledged")}
-              className="rounded border border-white/10 px-2.5 py-1 text-xs text-white hover:bg-white/5"
-            >
-              Acknowledge
-            </button>
-          )}
-          <button
-            onClick={() => onStatus("resolved")}
-            className="rounded border border-white/10 px-2.5 py-1 text-xs text-white hover:bg-white/5"
-          >
-            Resolve
-          </button>
-        </div>
-      )}
-    </li>
-  );
-}
-
-function DocOverlay({
-  doc,
-  onClose,
-}: {
-  doc:
-    | { kind: "briefing"; data: OpsBriefing }
-    | { kind: "handover"; data: HandoverReport }
-    | { kind: "loading"; label: string }
-    | { kind: "error"; message: string };
-  onClose: () => void;
-}) {
-  return (
-    <Modal
-      onClose={onClose}
-      label="Ops document"
-      className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-white/10 bg-[#1a1a19] p-5"
-    >
-      {doc.kind === "loading" && <p className="py-10 text-center text-sm text-[#898781]">{doc.label}</p>}
-        {doc.kind === "error" && (
-          <>
-            <p className="text-sm font-semibold" style={{ color: STATUS.serious }}>
-              ● Something went wrong
-            </p>
-            <p className="mt-2 text-sm text-[#c3c2b7]">{doc.message}</p>
-          </>
-        )}
-        {doc.kind === "briefing" && (
-          <>
-            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: ACCENT }}>
-              Ops briefing · minute {doc.data.generatedAtMinute}
-            </p>
-            <h3 className="mt-1 text-lg font-semibold text-white">{doc.data.headline}</h3>
-            <p className="mt-3 whitespace-pre-wrap text-sm text-[#c3c2b7]">{doc.data.situation}</p>
-            <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-[#898781]">Watch items</h4>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-[#c3c2b7]">
-              {doc.data.watchItems.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-            <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-[#898781]">Crowd outlook</h4>
-            <p className="mt-1 text-sm text-[#c3c2b7]">{doc.data.crowdOutlook}</p>
-          </>
-        )}
-        {doc.kind === "handover" && (
-          <>
-            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: ACCENT }}>
-              Shift handover · {doc.data.shift}
-            </p>
-            <p className="mt-3 whitespace-pre-wrap text-sm text-[#c3c2b7]">{doc.data.narrative}</p>
-            <h4 className="mt-4 text-xs font-semibold uppercase tracking-wider text-[#898781]">For the next shift</h4>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-[#c3c2b7]">
-              {doc.data.actionsForNextShift.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </>
-        )}
-        <button
-          onClick={onClose}
-          className="mt-5 rounded border border-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/5"
-        >
-          Close
-        </button>
-    </Modal>
   );
 }

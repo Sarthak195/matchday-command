@@ -67,7 +67,7 @@ cp .env.example .env.local   # add your Gemini API key (free at aistudio.google.
 npm run dev                  # http://localhost:3000
 ```
 
-Useful checks: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
+Useful checks: `npm run lint`, `npm run format`, `npm run typecheck`, `npm test`, `npm run build`.
 
 ## Testing
 
@@ -79,13 +79,22 @@ Unit tests ([Vitest](https://vitest.dev)) cover the deterministic core — the l
 - **Client state** — the SSE reducer's dedupe / reset / zone-gate projection logic
 - **Dispatch store** — id assignment, status defaults, queue cap
 
+- **Routes & security** — API request-body validation (400s) and per-client rate limiting (429s)
+
 ```bash
 npm test             # run once
 npm run test:watch   # watch mode
-npm run test:coverage
+npm run test:coverage  # coverage floor enforced (~77%)
 ```
 
-CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs lint, typecheck, the full test suite, and a production build on every push and pull request.
+**Accessibility** is audited with Playwright + [axe-core](https://github.com/dequelabs/axe-core) against the running app — static pages plus interactive states (copilot, modals) — and passes with **zero WCAG 2.1 AA violations**:
+
+```bash
+npm run dev            # in one terminal
+npm run audit:a11y     # in another
+```
+
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs Prettier check, ESLint, typecheck, the full test suite (with coverage floor), and a production build on every push and pull request. Security posture is documented in [SECURITY.md](SECURITY.md).
 
 ## Deploy to Cloud Run
 

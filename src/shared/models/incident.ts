@@ -10,12 +10,7 @@ export type IncidentSeverity = "info" | "low" | "medium" | "high" | "critical";
 export type IncidentStatus = "open" | "acknowledged" | "resolving" | "resolved";
 
 export type IncidentCategory =
-  | "crowd"
-  | "medical"
-  | "security"
-  | "weather"
-  | "facilities"
-  | "other";
+  "crowd" | "medical" | "security" | "weather" | "facilities" | "other";
 
 export interface RecommendedAction {
   action: string; // e.g. "Open Gate D for overflow entry"

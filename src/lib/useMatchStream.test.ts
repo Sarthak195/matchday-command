@@ -4,7 +4,12 @@ import type { CrowdDensityEvent, GateFlowEvent, Incident, MatchEvent } from "@/s
 
 const INITIAL = dashReducer({} as DashState, { type: "reset" });
 
-const density = (id: string, zoneId: string, densityPct: number, occupancy = 0): CrowdDensityEvent => ({
+const density = (
+  id: string,
+  zoneId: string,
+  densityPct: number,
+  occupancy = 0,
+): CrowdDensityEvent => ({
   type: "crowd-density",
   id,
   venueId: "meridian-arena",
@@ -83,17 +88,32 @@ describe("dashReducer", () => {
       atMinute: 60,
       phase,
     });
-    const kicked = dashReducer(INITIAL, { type: "message", msg: { kind: "event", event: match("kickoff") } });
+    const kicked = dashReducer(INITIAL, {
+      type: "message",
+      msg: { kind: "event", event: match("kickoff") },
+    });
     expect(kicked.phase).toBe("kickoff");
-    const afterGoal = dashReducer(kicked, { type: "message", msg: { kind: "event", event: match("goal") } });
+    const afterGoal = dashReducer(kicked, {
+      type: "message",
+      msg: { kind: "event", event: match("goal") },
+    });
     expect(afterGoal.phase).toBe("kickoff");
   });
 
   it("prepends incidents and dedupes them by id", () => {
-    const one = dashReducer(INITIAL, { type: "message", msg: { kind: "incident", incident: incident("i1") } });
-    const two = dashReducer(one, { type: "message", msg: { kind: "incident", incident: incident("i2") } });
+    const one = dashReducer(INITIAL, {
+      type: "message",
+      msg: { kind: "incident", incident: incident("i1") },
+    });
+    const two = dashReducer(one, {
+      type: "message",
+      msg: { kind: "incident", incident: incident("i2") },
+    });
     expect(two.incidents.map((i) => i.id)).toEqual(["i2", "i1"]);
-    const dup = dashReducer(two, { type: "message", msg: { kind: "incident", incident: incident("i2") } });
+    const dup = dashReducer(two, {
+      type: "message",
+      msg: { kind: "incident", incident: incident("i2") },
+    });
     expect(dup.incidents).toHaveLength(2);
   });
 

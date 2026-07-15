@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { IncidentDetector } from "./detector";
-import {
-  DENSITY_ALERT_PCT,
-  DENSITY_CRITICAL_PCT,
-  QUEUE_ALERT_LENGTH,
-} from "@/shared/constants";
+import { DENSITY_ALERT_PCT, DENSITY_CRITICAL_PCT, QUEUE_ALERT_LENGTH } from "@/shared/constants";
 import type {
   CrowdDensityEvent,
   GateFlowEvent,
@@ -24,7 +20,13 @@ function gate(gateId: string, queueLength: number): GateFlowEvent {
   return { ...base(), type: "gate-flow", gateId, entriesPerMinute: 100, queueLength };
 }
 function medical(hint?: MedicalEvent["severityHint"]): MedicalEvent {
-  return { ...base(), type: "medical", zoneId: "seating-bowl", description: "fainting", severityHint: hint };
+  return {
+    ...base(),
+    type: "medical",
+    zoneId: "seating-bowl",
+    description: "fainting",
+    severityHint: hint,
+  };
 }
 function weather(condition: WeatherEvent["condition"]): WeatherEvent {
   return { ...base(), type: "weather", condition, tempC: 30 };
@@ -85,7 +87,9 @@ describe("IncidentDetector — gate queue rules", () => {
 
 describe("IncidentDetector — medical rules", () => {
   it("maps severity hints onto incident severity", () => {
-    expect(new IncidentDetector().process([medical("life-threatening")], 30)[0].severity).toBe("critical");
+    expect(new IncidentDetector().process([medical("life-threatening")], 30)[0].severity).toBe(
+      "critical",
+    );
     expect(new IncidentDetector().process([medical("serious")], 30)[0].severity).toBe("high");
     expect(new IncidentDetector().process([medical("minor")], 30)[0].severity).toBe("medium");
     expect(new IncidentDetector().process([medical(undefined)], 30)[0].severity).toBe("medium");

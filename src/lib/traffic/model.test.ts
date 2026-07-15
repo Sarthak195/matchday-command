@@ -11,7 +11,9 @@ describe("trafficAt — structure", () => {
   });
 
   it("is deterministic for the same inputs", () => {
-    expect(JSON.stringify(trafficAt(45, "gates-open"))).toBe(JSON.stringify(trafficAt(45, "gates-open")));
+    expect(JSON.stringify(trafficAt(45, "gates-open"))).toBe(
+      JSON.stringify(trafficAt(45, "gates-open")),
+    );
   });
 });
 
@@ -30,7 +32,9 @@ describe("trafficAt — load curve", () => {
 
   it("surges again at full time and adds an egress advisory", () => {
     const state = trafficAt(166, "fulltime");
-    expect(state.corridors.some((c) => c.congestion === "severe" || c.congestion === "heavy")).toBe(true);
+    expect(state.corridors.some((c) => c.congestion === "severe" || c.congestion === "heavy")).toBe(
+      true,
+    );
     const egress = state.advisories.find((a) => a.message.toLowerCase().includes("egress"));
     expect(egress?.severity).toBe("info");
   });

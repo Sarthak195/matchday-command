@@ -69,10 +69,16 @@ export function dashReducer(state: DashState, action: DashAction): DashState {
       if (msg.kind === "event") {
         const e = msg.event;
         if (state.events.some((x) => x.id === e.id)) return state;
-        const next: DashState = { ...state, events: [e, ...state.events].slice(0, CATCHUP_EVENT_COUNT) };
+        const next: DashState = {
+          ...state,
+          events: [e, ...state.events].slice(0, CATCHUP_EVENT_COUNT),
+        };
         if (e.type === "match") next.phase = nextPhase(state.phase, e);
         if (e.type === "crowd-density") {
-          next.zones = { ...state.zones, [e.zoneId]: { occupancy: e.occupancy, densityPct: e.densityPct } };
+          next.zones = {
+            ...state.zones,
+            [e.zoneId]: { occupancy: e.occupancy, densityPct: e.densityPct },
+          };
         }
         if (e.type === "gate-flow") {
           next.gates = {

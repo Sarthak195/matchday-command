@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { Type } from "@google/genai";
 import { geminiErrorMessage, generateJson } from "@/lib/gemini";
+import { rateLimitResponse } from "@/lib/rate-limit";
 import { DEMO_VENUE } from "@/shared/constants";
 import type { HandoverReport, Incident, OpsBriefing, StadiumEvent } from "@/shared/models";
 
@@ -54,6 +55,9 @@ function contextBlock(body: BriefingRequest): string {
  * The client sends its accumulated state; the server stays stateless.
  */
 export async function POST(req: NextRequest) {
+  const limited = rateLimitResponse(req, "briefing", { limit: 30, windowMs: 60_000 });
+  if (limited) return limited;
+
   let body: BriefingRequest;
   try {
     body = (await req.json()) as BriefingRequest;
@@ -68,7 +72,9 @@ export async function POST(req: NextRequest) {
 
   try {
     if (isHandover) {
-      const generated = await generateJson<Pick<HandoverReport, "narrative" | "actionsForNextShift">>({
+      const generated = await generateJson<
+        Pick<HandoverReport, "narrative" | "actionsForNextShift">
+      >({
         system: SYSTEM,
         prompt: `Write the shift-handover report for "${body.shiftLabel ?? "current shift"}". Summarize what happened, what was decided and why, and what the incoming shift must pick up.\n\n${contextBlock(body)}`,
         schema: HANDOVER_SCHEMA,

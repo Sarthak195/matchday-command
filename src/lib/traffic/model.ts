@@ -22,24 +22,51 @@ const CORRIDORS: Omit<Corridor, "congestion" | "etaMin">[] = [
   {
     id: "ab-road-north",
     name: "AB Road approach (north)",
-    path: [{ lat: lat + 0.03, lng: lng + 0.004 }, { lat: lat + 0.012, lng: lng + 0.001 }, { lat, lng }],
+    path: [
+      { lat: lat + 0.03, lng: lng + 0.004 },
+      { lat: lat + 0.012, lng: lng + 0.001 },
+      { lat, lng },
+    ],
   },
   {
     id: "ring-road-east",
     name: "Ring Road (east)",
-    path: [{ lat: lat + 0.006, lng: lng + 0.03 }, { lat: lat + 0.002, lng: lng + 0.012 }, { lat, lng }],
+    path: [
+      { lat: lat + 0.006, lng: lng + 0.03 },
+      { lat: lat + 0.002, lng: lng + 0.012 },
+      { lat, lng },
+    ],
   },
   {
     id: "bypass-south",
     name: "Bypass (south)",
-    path: [{ lat: lat - 0.028, lng: lng - 0.006 }, { lat: lat - 0.01, lng: lng - 0.002 }, { lat, lng }],
+    path: [
+      { lat: lat - 0.028, lng: lng - 0.006 },
+      { lat: lat - 0.01, lng: lng - 0.002 },
+      { lat, lng },
+    ],
   },
 ];
 
 const LOTS: Omit<ParkingLot, "occupancy">[] = [
-  { id: "lot-a", name: "Lot A (north)", capacity: 3200, location: { lat: lat + 0.006, lng: lng + 0.002 } },
-  { id: "lot-b", name: "Lot B (east)", capacity: 2600, location: { lat: lat + 0.001, lng: lng + 0.007 } },
-  { id: "lot-c", name: "Lot C (south)", capacity: 2400, location: { lat: lat - 0.006, lng: lng - 0.003 } },
+  {
+    id: "lot-a",
+    name: "Lot A (north)",
+    capacity: 3200,
+    location: { lat: lat + 0.006, lng: lng + 0.002 },
+  },
+  {
+    id: "lot-b",
+    name: "Lot B (east)",
+    capacity: 2600,
+    location: { lat: lat + 0.001, lng: lng + 0.007 },
+  },
+  {
+    id: "lot-c",
+    name: "Lot C (south)",
+    capacity: 2400,
+    location: { lat: lat - 0.006, lng: lng - 0.003 },
+  },
 ];
 
 function levelFromLoad(load: number): CongestionLevel {
@@ -105,7 +132,8 @@ export function trafficAt(minute: number, phase: MatchPhase, seed = 1): TrafficS
   if (phase === "fulltime") {
     advisories.push({
       id: `adv-egress-${minute}`,
-      message: "Egress underway — hold pedestrian crossing priority on Ring Road, stage taxis at Lot B.",
+      message:
+        "Egress underway — hold pedestrian crossing priority on Ring Road, stage taxis at Lot B.",
       severity: "info",
     });
   }

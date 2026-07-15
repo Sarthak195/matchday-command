@@ -1,12 +1,6 @@
 /** Physical layout of a stadium: zones and gates. Shared by the simulator, API, and UI. */
 
-export type ZoneKind =
-  | "gate"
-  | "concourse"
-  | "seating"
-  | "concessions"
-  | "medical"
-  | "parking";
+export type ZoneKind = "gate" | "concourse" | "seating" | "concessions" | "medical" | "parking";
 
 export interface Zone {
   id: string;

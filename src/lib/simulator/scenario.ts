@@ -37,7 +37,15 @@ export const SCENARIO: ScenarioBeat[] = [
   },
   {
     atMinute: 41,
-    events: [{ type: "crowd-density", atMinute: 41, zoneId: "concourse-north", occupancy: 8000, densityPct: 89 }],
+    events: [
+      {
+        type: "crowd-density",
+        atMinute: 41,
+        zoneId: "concourse-north",
+        occupancy: 8000,
+        densityPct: 89,
+      },
+    ],
   },
   {
     atMinute: 60,
@@ -58,7 +66,13 @@ export const SCENARIO: ScenarioBeat[] = [
   {
     atMinute: 75,
     events: [
-      { type: "weather", atMinute: 75, condition: "storm", tempC: 31, note: "Storm cell 20km west, moving in" },
+      {
+        type: "weather",
+        atMinute: 75,
+        condition: "storm",
+        tempC: 31,
+        note: "Storm cell 20km west, moving in",
+      },
       {
         type: "radio-log",
         atMinute: 75,
@@ -92,7 +106,12 @@ export const SCENARIO: ScenarioBeat[] = [
   {
     atMinute: 165,
     events: [
-      { type: "match", atMinute: 165, phase: "fulltime", note: "Egress begins, all gates to exit mode" },
+      {
+        type: "match",
+        atMinute: 165,
+        phase: "fulltime",
+        note: "Egress begins, all gates to exit mode",
+      },
       {
         type: "radio-log",
         atMinute: 165,

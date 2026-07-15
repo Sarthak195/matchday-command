@@ -54,10 +54,15 @@ export default function TournamentDashboard() {
       <header className="border-b border-white/10 bg-[#1a1a19]">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3">
           <div>
-            <h1 className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
+            <h1
+              className="text-[11px] font-semibold uppercase tracking-[0.2em]"
+              style={{ color: ACCENT }}
+            >
               MatchDay Command · Tournament
             </h1>
-            <p className="text-xs text-[#898781]">Match day 4 · {TOURNAMENT_VENUES.length} venues · Madhya Pradesh cluster</p>
+            <p className="text-xs text-[#898781]">
+              Match day 4 · {TOURNAMENT_VENUES.length} venues · Madhya Pradesh cluster
+            </p>
           </div>
           <span
             role="status"
@@ -68,7 +73,10 @@ export default function TournamentDashboard() {
             {connected ? "● Live" : "○ Reconnecting"}
           </span>
           <div className="ml-auto">
-            <Link href="/" className="rounded border border-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/5">
+            <Link
+              href="/"
+              className="rounded border border-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/5"
+            >
               ← Ops room
             </Link>
           </div>
@@ -99,7 +107,9 @@ export default function TournamentDashboard() {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-sm font-semibold text-white">{venue.name}</p>
-                    <p className="text-[11px] text-[#898781]">{venue.city} · {venue.capacity.toLocaleString()} cap</p>
+                    <p className="text-[11px] text-[#898781]">
+                      {venue.city} · {venue.capacity.toLocaleString()} cap
+                    </p>
                   </div>
                   <span
                     className="rounded-full px-2 py-0.5 text-[10px] font-medium"
@@ -126,10 +136,16 @@ export default function TournamentDashboard() {
                       <span style={{ color: d.color }}>{d.label}</span>
                     </span>
                   </div>
-                  <div className="h-1.5 overflow-hidden rounded-full" style={{ backgroundColor: `${d.color}33` }}>
+                  <div
+                    className="h-1.5 overflow-hidden rounded-full"
+                    style={{ backgroundColor: `${d.color}33` }}
+                  >
                     <div
                       className="h-full rounded-full transition-[width] duration-500"
-                      style={{ width: `${Math.min(s.worstDensityPct, 100)}%`, backgroundColor: d.color }}
+                      style={{
+                        width: `${Math.min(s.worstDensityPct, 100)}%`,
+                        backgroundColor: d.color,
+                      }}
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -147,8 +163,14 @@ export default function TournamentDashboard() {
                   </div>
                 </div>
 
-                <p className="mt-3 border-t border-white/5 pt-2 text-[11px] text-[#c3c2b7]">{s.statusLine}</p>
-                {venue.live && <p className="mt-1 text-[11px]" style={{ color: ACCENT }}>Open ops room →</p>}
+                <p className="mt-3 border-t border-white/5 pt-2 text-[11px] text-[#c3c2b7]">
+                  {s.statusLine}
+                </p>
+                {venue.live && (
+                  <p className="mt-1 text-[11px]" style={{ color: ACCENT }}>
+                    Open ops room →
+                  </p>
+                )}
               </div>
             );
             return venue.live ? (
@@ -163,7 +185,8 @@ export default function TournamentDashboard() {
       </main>
 
       <footer className="mx-auto max-w-[1400px] px-5 pb-4 text-[11px] text-[#898781]">
-        Meridian Arena is the live shared simulation; sister venues are derived summaries · Google PromptWars 2026
+        Meridian Arena is the live shared simulation; sister venues are derived summaries · Google
+        PromptWars 2026
       </footer>
     </div>
   );

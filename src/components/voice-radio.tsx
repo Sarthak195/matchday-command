@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { STATUS } from "@/lib/theme";
+import { CRITICAL_TEXT, STATUS } from "@/lib/theme";
 
 /**
  * Push-to-talk radio reports via the browser's built-in Web Speech API
@@ -56,7 +56,10 @@ export function VoiceRadio({ onTranscript }: { onTranscript: (text: string) => v
 
   if (status === "unsupported") {
     return (
-      <span className="text-[10px] text-[#898781]" title="Web Speech API not available in this browser">
+      <span
+        className="text-[10px] text-[#898781]"
+        title="Web Speech API not available in this browser"
+      >
         mic n/a
       </span>
     );
@@ -67,7 +70,9 @@ export function VoiceRadio({ onTranscript }: { onTranscript: (text: string) => v
       onClick={start}
       title="Push to talk — speak a radio report into the feed"
       className="rounded border border-white/10 px-2 py-0.5 text-[11px] text-white hover:bg-white/5"
-      style={status === "listening" ? { borderColor: STATUS.critical, color: STATUS.critical } : undefined}
+      style={
+        status === "listening" ? { borderColor: STATUS.critical, color: CRITICAL_TEXT } : undefined
+      }
     >
       {status === "listening" ? "● Listening…" : status === "error" ? "🎙 Retry" : "🎙 Radio report"}
     </button>

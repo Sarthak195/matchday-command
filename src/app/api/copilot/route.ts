@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { Type, type FunctionDeclaration } from "@google/genai";
 import { geminiErrorMessage, getClient, getModel } from "@/lib/gemini";
+import { rateLimitResponse } from "@/lib/rate-limit";
 import { DEMO_VENUE } from "@/shared/constants";
 import { STAFF_ROLES } from "@/shared/models";
 
@@ -62,7 +63,10 @@ const TOOL_DECLARATIONS: FunctionDeclaration[] = [
         title: { type: Type.STRING },
         detail: { type: Type.STRING, description: "Specific, actionable instruction" },
         priority: { type: Type.INTEGER, description: "1 = do now, 2 = soon, 3 = when able" },
-        dueBy: { type: Type.STRING, description: 'e.g. "before kickoff", "by halftime" (optional)' },
+        dueBy: {
+          type: Type.STRING,
+          description: 'e.g. "before kickoff", "by halftime" (optional)',
+        },
       },
       required: ["role", "title", "detail", "priority"],
     },
@@ -88,6 +92,9 @@ ${JSON.stringify(snapshot)}`;
 }
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimitResponse(req, "copilot", { limit: 40, windowMs: 60_000 });
+  if (limited) return limited;
+
   let body: CopilotRequest;
   try {
     body = (await req.json()) as CopilotRequest;

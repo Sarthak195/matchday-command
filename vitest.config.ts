@@ -20,6 +20,13 @@ export default defineConfig({
       provider: "v8",
       include: ["src/lib/**", "src/shared/**"],
       reporter: ["text", "html"],
+      // Regression floor for the deterministic core (currently ~77% lines).
+      thresholds: {
+        lines: 70,
+        functions: 70,
+        branches: 68,
+        statements: 70,
+      },
     },
   },
 });
