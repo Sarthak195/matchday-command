@@ -8,6 +8,7 @@ AI incident command copilot for stadium/tournament operations. Solo entry for **
 
 - `npm run dev` — dev server on :3000
 - `npm run typecheck` — `tsc --noEmit` (run after any model change)
+- `npm test` — Vitest unit suite (`vitest run`); `npm run test:watch` / `npm run test:coverage`. Tests cover the deterministic `src/lib` layer (detector, predict, traffic, tournament, store, weather) — colocated as `*.test.ts`. Add tests for any new pure module here.
 - `npm run build` — production build (standalone output for Docker)
 - Deploy: `gcloud run deploy matchday-command --source . --region asia-south1 --max-instances 1`
 

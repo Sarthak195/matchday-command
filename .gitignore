@@ -22,3 +22,6 @@ npm-debug.log*
 
 # typescript
 *.tsbuildinfo
+
+# test coverage
+/coverage
