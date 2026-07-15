@@ -91,12 +91,10 @@ export function VenueMap({ traffic }: { traffic: TrafficState }) {
       mapRef.current = null;
       mapsRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (mode === "google") drawOverlays();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [traffic, mode]);
 
   function drawOverlays() {

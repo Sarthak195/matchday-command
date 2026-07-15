@@ -32,7 +32,7 @@ The app has **three views on one shared live match**: the **ops control room** (
 flowchart LR
     SIM[Match-day simulator<br/>scripted scenario + noise] -->|SSE /api/stream| UI[Ops dashboard<br/>Next.js App Router]
     SIM --> STORE[(In-memory OpsState)]
-    UI -->|POST /api/triage| GEMINI[Gemini 2.5 Flash<br/>structured output]
+    UI -->|POST /api/triage| GEMINI[Gemini Flash<br/>structured output]
     UI -->|POST /api/briefing| GEMINI
     STORE --> GEMINI
 ```
@@ -53,7 +53,8 @@ Everything shares one vocabulary: the types in [`src/shared/models/`](src/shared
 | Var | Purpose | Required |
 |---|---|---|
 | `GEMINI_API_KEY` | Triage, briefings, demand (Gemini) | Yes for AI features |
-| `GEMINI_MODEL` | Model id (default `gemini-3.5-flash`) | No |
+| `GEMINI_MODEL` | Primary model id (default `gemini-3.5-flash`) | No |
+| `GEMINI_FALLBACK_MODELS` | Comma-separated models tried if the primary is overloaded (503/500/429) | No |
 | `MAPS_API_KEY` | Google Maps live traffic; delivered to the client at runtime via `/api/config`. Without it, the map degrades to a schematic. | No |
 
 Everything degrades gracefully: with no keys at all, the feed, map (schematic), and dashboards still work — only the Gemini-backed panels surface an error.
@@ -66,7 +67,25 @@ cp .env.example .env.local   # add your Gemini API key (free at aistudio.google.
 npm run dev                  # http://localhost:3000
 ```
 
-Useful checks: `npm run typecheck`, `npm run build`.
+Useful checks: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
+
+## Testing
+
+Unit tests ([Vitest](https://vitest.dev)) cover the deterministic core — the logic where correctness matters and there are no external dependencies:
+
+- **Simulation & detection** — incident detection rules, early-warning trend projection, match-phase folding
+- **Deterministic models** — approach-traffic/parking, tournament summaries, weather live/fallback mapping
+- **AI layer** — the Gemini model-fallback chain (mocked client) and transient-error classification
+- **Client state** — the SSE reducer's dedupe / reset / zone-gate projection logic
+- **Dispatch store** — id assignment, status defaults, queue cap
+
+```bash
+npm test             # run once
+npm run test:watch   # watch mode
+npm run test:coverage
+```
+
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs lint, typecheck, the full test suite, and a production build on every push and pull request.
 
 ## Deploy to Cloud Run
 
