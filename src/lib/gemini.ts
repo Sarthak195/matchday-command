@@ -2,7 +2,8 @@ import { GoogleGenAI } from "@google/genai";
 
 const DEFAULT_MODEL = "gemini-3.5-flash";
 /** Models tried, in order, when the primary is unavailable. Overridable via env. */
-const DEFAULT_FALLBACKS = "gemini-3-flash-preview,gemini-flash-latest,gemini-2.0-flash";
+const DEFAULT_FALLBACKS =
+  "gemini-3-flash-preview,gemini-flash-latest,gemini-3.1-flash-lite,gemini-flash-lite-latest,gemini-2.0-flash";
 /** Gemini status codes that mean "try another model": overloaded / transient / rate-limited. */
 const RETRYABLE_CODES = new Set([429, 500, 503]);
 
