@@ -14,8 +14,8 @@ const CSP = [
   "object-src 'none'",
   "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://*.google.com",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com",
-  "style-src 'self' 'unsafe-inline'",
-  "font-src 'self' data:",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
   "connect-src 'self' https://maps.googleapis.com https://*.googleapis.com",
   "worker-src 'self' blob:",
 ].join("; ");
