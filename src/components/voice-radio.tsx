@@ -10,16 +10,14 @@ import { STATUS } from "@/lib/theme";
  * like any other signal.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function getRecognizer(): any | null {
+function getRecognizer(): SpeechRecognitionConstructor | null {
   if (typeof window === "undefined") return null;
-  const w = window as any;
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+  return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
 }
 
 export function VoiceRadio({ onTranscript }: { onTranscript: (text: string) => void }) {
   const [status, setStatus] = useState<"idle" | "listening" | "unsupported" | "error">("idle");
-  const recRef = useRef<any>(null);
+  const recRef = useRef<SpeechRecognitionInstance | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -40,7 +38,7 @@ export function VoiceRadio({ onTranscript }: { onTranscript: (text: string) => v
     rec.lang = "en-IN";
     rec.interimResults = false;
     rec.maxAlternatives = 1;
-    rec.onresult = (e: any) => {
+    rec.onresult = (e: SpeechRecognitionEvent) => {
       const transcript = e.results?.[0]?.[0]?.transcript;
       if (transcript) onTranscript(transcript);
       if (mountedRef.current) setStatus("idle");
