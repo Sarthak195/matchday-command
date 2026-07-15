@@ -3,7 +3,15 @@ import { Type } from "@google/genai";
 import { geminiErrorMessage, generateJson } from "@/lib/gemini";
 import { addTask } from "@/lib/store";
 import { DEMO_VENUE } from "@/shared/constants";
-import type { EvacuationPlan, EvacZoneOrder, Incident, StaffRole, StaffTask } from "@/shared/models";
+import {
+  clampPriority,
+  STAFF_ROLES,
+  type EvacuationPlan,
+  type EvacZoneOrder,
+  type Incident,
+  type StaffRole,
+  type StaffTask,
+} from "@/shared/models";
 
 export const dynamic = "force-dynamic";
 
@@ -21,16 +29,6 @@ interface EmergencyRequest {
 }
 
 const ZONE_IDS = DEMO_VENUE.zones.map((z) => z.id);
-const STAFF_ROLES: StaffRole[] = [
-  "catering",
-  "concessions",
-  "stewarding",
-  "security",
-  "medical",
-  "facilities",
-  "traffic",
-  "logistics",
-];
 
 const EVAC_SCHEMA = {
   type: Type.OBJECT,
@@ -55,7 +53,7 @@ const EVAC_SCHEMA = {
       items: {
         type: Type.OBJECT,
         properties: {
-          role: { type: Type.STRING, enum: STAFF_ROLES },
+          role: { type: Type.STRING, enum: [...STAFF_ROLES] },
           title: { type: Type.STRING },
           detail: { type: Type.STRING },
           priority: { type: Type.INTEGER },
@@ -110,7 +108,7 @@ export async function POST(req: NextRequest) {
       commandSummary: gen.commandSummary,
       zoneOrders: gen.zoneOrders.map((o) => ({
         ...o,
-        priority: Math.min(3, Math.max(1, Math.round(o.priority))) as 1 | 2 | 3,
+        priority: clampPriority(o.priority),
         zoneName: DEMO_VENUE.zones.find((z) => z.id === o.zoneId)?.name ?? o.zoneId,
       })),
     };
@@ -120,7 +118,7 @@ export async function POST(req: NextRequest) {
         role: t.role,
         title: `[EVAC] ${t.title}`,
         detail: t.detail,
-        priority: Math.min(3, Math.max(1, Math.round(t.priority))) as 1 | 2 | 3,
+        priority: clampPriority(t.priority),
         origin: "emergency",
         createdAtMinute: body.minute,
         dueBy: "immediately",

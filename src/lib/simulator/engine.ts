@@ -1,9 +1,12 @@
 import { DEMO_VENUE, EXPECTED_ATTENDANCE, KICKOFF_MINUTE } from "@/shared/constants";
-import type { MatchPhase, StadiumEvent } from "@/shared/models";
+import { nextPhase, type MatchPhase, type StadiumEvent } from "@/shared/models";
 import { SCENARIO } from "./scenario";
 
+/** How long a scripted density override lingers before decaying back to model. */
+const DENSITY_OVERRIDE_DECAY_MIN = 12;
+
 interface GateState {
-  queue: number;
+  queueLength: number;
   entriesPerMinute: number;
 }
 
@@ -35,7 +38,7 @@ export class SimulationEngine {
   constructor(seed = 42) {
     this.rng = makeRng(seed);
     for (const gate of DEMO_VENUE.gates) {
-      this.gates.set(gate.id, { queue: 0, entriesPerMinute: 0 });
+      this.gates.set(gate.id, { queueLength: 0, entriesPerMinute: 0 });
     }
   }
 
@@ -61,16 +64,14 @@ export class SimulationEngine {
 
     // 2. Baseline arrivals: bell-ish curve peaking ~20 min before kickoff.
     const arrivals = this.arrivalsThisMinute();
-    let arrivalsLeft = arrivals;
     const gateList = DEMO_VENUE.gates;
     const totalThroughput = gateList.reduce((sum, g) => sum + g.throughputPerMinute, 0);
     for (const gate of gateList) {
       const state = this.gates.get(gate.id)!;
       const share = gate.throughputPerMinute / totalThroughput;
       const inflow = Math.round(arrivals * share * (0.85 + this.rng() * 0.3));
-      arrivalsLeft -= inflow;
-      const processed = Math.min(state.queue + inflow, gate.throughputPerMinute);
-      state.queue = Math.max(0, state.queue + inflow - processed);
+      const processed = Math.min(state.queueLength + inflow, gate.throughputPerMinute);
+      state.queueLength = Math.max(0, state.queueLength + inflow - processed);
       state.entriesPerMinute = processed;
       this.inside = Math.min(this.inside + processed, EXPECTED_ATTENDANCE);
     }
@@ -86,7 +87,7 @@ export class SimulationEngine {
           atMinute: this.minute,
           gateId: gate.id,
           entriesPerMinute: state.entriesPerMinute,
-          queueLength: state.queue,
+          queueLength: state.queueLength,
         });
       }
     }
@@ -116,18 +117,21 @@ export class SimulationEngine {
   private applyScripted(event: StadiumEvent): void {
     switch (event.type) {
       case "match":
-        this.phase = event.phase === "goal" ? this.phase : event.phase;
+        this.phase = nextPhase(this.phase, event);
         break;
       case "gate-flow": {
         const state = this.gates.get(event.gateId);
         if (state) {
-          state.queue = event.queueLength;
+          state.queueLength = event.queueLength;
           state.entriesPerMinute = event.entriesPerMinute;
         }
         break;
       }
       case "crowd-density":
-        this.densityOverrides.set(event.zoneId, { pct: event.densityPct, until: this.minute + 12 });
+        this.densityOverrides.set(event.zoneId, {
+          pct: event.densityPct,
+          until: this.minute + DENSITY_OVERRIDE_DECAY_MIN,
+        });
         break;
       default:
         break;
@@ -160,7 +164,7 @@ export class SimulationEngine {
     const zone = DEMO_VENUE.zones.find((z) => z.id === zoneId);
     if (!zone) return 0;
     if (zone.kind === "gate") {
-      const queued = zone.gateIds.reduce((sum, id) => sum + (this.gates.get(id)?.queue ?? 0), 0);
+      const queued = zone.gateIds.reduce((sum, id) => sum + (this.gates.get(id)?.queueLength ?? 0), 0);
       return queued + Math.round(this.rng() * 200);
     }
     const concourseShare = this.phase === "halftime" ? 0.42 : this.phase === "gates-open" ? 0.3 : 0.1;

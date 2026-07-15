@@ -64,6 +64,16 @@ export interface MatchEvent extends BaseEvent {
   note?: string;
 }
 
+/**
+ * Fold a match event into the running phase. `goal` is modeled as a transient
+ * `MatchPhase` but must not overwrite the real phase (kickoff/second-half/…),
+ * so it's held here in one place — the sim engine and the client reducer both
+ * call this instead of re-deriving the rule.
+ */
+export function nextPhase(current: MatchPhase, event: MatchEvent): MatchPhase {
+  return event.phase === "goal" ? current : event.phase;
+}
+
 export type StadiumEvent =
   | GateFlowEvent
   | CrowdDensityEvent

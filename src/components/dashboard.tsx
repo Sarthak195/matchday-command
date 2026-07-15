@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DEMO_VENUE, QUEUE_ALERT_LENGTH, SIM_TICK_MS } from "@/shared/constants";
+import { DEMO_VENUE, QUEUE_ALERT_LENGTH, SIM_TICK_FAST_MS, SIM_TICK_MS } from "@/shared/constants";
 import type {
   EvacuationPlan,
   HandoverReport,
@@ -15,10 +15,11 @@ import type {
 } from "@/shared/models";
 import { ACCENT, PHASE_LABEL, SEVERITY_META, STATUS, densityState } from "@/lib/theme";
 import { trafficAt } from "@/lib/traffic/model";
-import { useMatchStream } from "@/lib/useMatchStream";
+import { insideEstimate, useMatchStream, worstDensityPct } from "@/lib/useMatchStream";
 import { SCENARIO } from "@/lib/simulator/scenario";
 import { computeWarnings, type EarlyWarning } from "@/lib/predict";
 import { Panel, StatRow, Tag } from "@/components/primitives";
+import { Modal } from "@/components/modal";
 import { VenueMap } from "@/components/venue-map";
 import { Copilot, type ToolCall } from "@/components/copilot";
 import { VoiceRadio } from "@/components/voice-radio";
@@ -96,10 +97,16 @@ export default function Dashboard() {
   >(null);
 
   useEffect(() => {
+    let cancelled = false;
     fetch("/api/weather")
       .then((r) => r.json())
-      .then((f: WeatherForecast) => setForecast(f))
+      .then((f: WeatherForecast) => {
+        if (!cancelled) setForecast(f);
+      })
       .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const nextBeat = BEAT_MINUTES.find((m) => m > state.minute);
@@ -109,17 +116,8 @@ export default function Dashboard() {
     [state.events, state.minute],
   );
   const openIncidents = state.incidents.filter((i) => i.status !== "resolved");
-  const worstDensity = useMemo(
-    () => Math.max(0, ...Object.values(state.zones).map((z) => z.densityPct)),
-    [state.zones],
-  );
-  const insideEstimate = useMemo(
-    () =>
-      DEMO_VENUE.zones
-        .filter((z) => z.kind === "seating" || z.kind === "concourse")
-        .reduce((sum, z) => sum + (state.zones[z.id]?.occupancy ?? 0), 0),
-    [state.zones],
-  );
+  const worstDensity = useMemo(() => worstDensityPct(state.zones), [state.zones]);
+  const inside = useMemo(() => insideEstimate(state.zones), [state.zones]);
 
   async function runTriage(incident: Incident) {
     setTriaging((prev) => new Set(prev).add(incident.id));
@@ -394,6 +392,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-[#0d0d0d] text-[#c3c2b7]">
       {emergencyActive && (
         <div
+          role="alert"
           className="flex flex-wrap items-center justify-between gap-2 px-5 py-2 text-sm font-semibold text-white"
           style={{ backgroundColor: STATUS.critical }}
         >
@@ -417,9 +416,9 @@ export default function Dashboard() {
       <header className="border-b border-white/10 bg-[#1a1a19]">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
+            <h1 className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
               MatchDay Command
-            </p>
+            </h1>
             <p className="text-xs text-[#898781]">
               {DEMO_VENUE.name}, {DEMO_VENUE.city} · ops control room
             </p>
@@ -429,7 +428,12 @@ export default function Dashboard() {
             <span className="rounded-full border border-white/10 px-2.5 py-0.5 text-xs text-[#c3c2b7]">
               {PHASE_LABEL[state.phase]}
             </span>
-            <span className="text-xs" style={{ color: connected ? STATUS.good : STATUS.serious }}>
+            <span
+              role="status"
+              aria-live="polite"
+              className="text-xs"
+              style={{ color: connected ? STATUS.good : STATUS.serious }}
+            >
               {connected ? "● Live" : "○ Reconnecting"}
             </span>
           </div>
@@ -445,8 +449,8 @@ export default function Dashboard() {
                 }}
                 className="rounded border border-white/10 bg-[#0d0d0d] px-2 py-1 text-xs text-white"
               >
-                <option value={2000}>1×</option>
-                <option value={500}>4×</option>
+                <option value={SIM_TICK_MS}>1×</option>
+                <option value={SIM_TICK_FAST_MS}>4×</option>
               </select>
             </label>
             <button
@@ -543,7 +547,7 @@ export default function Dashboard() {
             {warnings.length === 0 ? (
               <p className="text-xs text-[#898781]">Trends nominal — no projected breaches.</p>
             ) : (
-              <ul className="space-y-2.5">
+              <ul className="space-y-2.5" aria-live="polite" aria-label="Projected breach warnings">
                 {warnings.map((w) => (
                   <li key={w.id} className="text-xs">
                     <p>
@@ -621,7 +625,7 @@ export default function Dashboard() {
           </Panel>
 
           <Panel title="Occupancy">
-            <StatRow label="Inside (est.)" value={insideEstimate.toLocaleString()} />
+            <StatRow label="Inside (est.)" value={inside.toLocaleString()} />
             <StatRow label="Worst zone density" value={`${worstDensity}%`} />
             <StatRow label="Open incidents" value={String(openIncidents.length)} />
           </Panel>
@@ -635,8 +639,13 @@ export default function Dashboard() {
               <ul className="mt-3 space-y-1.5">
                 {traffic.advisories.map((a) => (
                   <li key={a.id} className="flex gap-2 text-xs">
-                    <span style={{ color: a.severity === "warning" ? STATUS.warning : STATUS.good }}>●</span>
-                    <span className="text-[#c3c2b7]">{a.message}</span>
+                    <span aria-hidden="true" style={{ color: a.severity === "warning" ? STATUS.warning : STATUS.good }}>
+                      {a.severity === "warning" ? "▲" : "●"}
+                    </span>
+                    <span className="text-[#c3c2b7]">
+                      <span className="sr-only">{a.severity === "warning" ? "Warning: " : "Advisory: "}</span>
+                      {a.message}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -676,7 +685,7 @@ export default function Dashboard() {
               No incidents — feed nominal. Rules open incidents automatically.
             </p>
           ) : (
-            <ul className="space-y-3">
+            <ul className="space-y-3" role="log" aria-live="polite" aria-relevant="additions" aria-label="Incident queue">
               {state.incidents.map((incident) => (
                 <IncidentCard
                   key={incident.id}
@@ -694,44 +703,43 @@ export default function Dashboard() {
       {doc && <DocOverlay doc={doc} onClose={() => setDoc(null)} />}
 
       {emergency.phase === "confirm" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-lg border border-white/10 bg-[#1a1a19] p-5">
-            <p className="text-sm font-semibold" style={{ color: STATUS.critical }}>
-              ⚠ Declare a major incident?
-            </p>
-            <p className="mt-2 text-sm text-[#c3c2b7]">
-              This flips the venue to evacuation posture: all gates go exit-only, Gemini writes the
-              zone-by-zone evacuation plan, and work orders are dispatched to every staff role.
-            </p>
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={() => void activateEmergency()}
-                className="rounded px-3 py-1.5 text-sm font-semibold text-white"
-                style={{ backgroundColor: STATUS.critical }}
-              >
-                Activate emergency mode
-              </button>
-              <button
-                onClick={() => setEmergency({ phase: "off" })}
-                className="rounded border border-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/5"
-              >
-                Cancel
-              </button>
-            </div>
+        <Modal
+          onClose={() => setEmergency({ phase: "off" })}
+          label="Declare a major incident"
+          className="w-full max-w-md rounded-lg border border-white/10 bg-[#1a1a19] p-5"
+        >
+          <p className="text-sm font-semibold" style={{ color: STATUS.critical }}>
+            ⚠ Declare a major incident?
+          </p>
+          <p className="mt-2 text-sm text-[#c3c2b7]">
+            This flips the venue to evacuation posture: all gates go exit-only, Gemini writes the
+            zone-by-zone evacuation plan, and work orders are dispatched to every staff role.
+          </p>
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={() => void activateEmergency()}
+              className="rounded px-3 py-1.5 text-sm font-semibold text-white"
+              style={{ backgroundColor: STATUS.critical }}
+            >
+              Activate emergency mode
+            </button>
+            <button
+              onClick={() => setEmergency({ phase: "off" })}
+              className="rounded border border-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/5"
+            >
+              Cancel
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {emergencyActive && emergency.showPlan && emergency.plan && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setEmergency((e) => ({ ...e, showPlan: false }))}
+        <Modal
+          onClose={() => setEmergency((e) => ({ ...e, showPlan: false }))}
+          label="Evacuation plan"
+          className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg border bg-[#1a1a19] p-5"
+          style={{ borderColor: `${STATUS.critical}66` }}
         >
-          <div
-            className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg border bg-[#1a1a19] p-5"
-            style={{ borderColor: `${STATUS.critical}66` }}
-            onClick={(e) => e.stopPropagation()}
-          >
             <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: STATUS.critical }}>
               Evacuation plan · minute {emergency.plan.generatedAtMinute}
             </p>
@@ -777,8 +785,7 @@ export default function Dashboard() {
             >
               Close
             </button>
-          </div>
-        </div>
+        </Modal>
       )}
 
       <Copilot snapshot={copilotSnapshot} onToolCall={runToolCall} />
@@ -940,12 +947,12 @@ function DocOverlay({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-white/10 bg-[#1a1a19] p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {doc.kind === "loading" && <p className="py-10 text-center text-sm text-[#898781]">{doc.label}</p>}
+    <Modal
+      onClose={onClose}
+      label="Ops document"
+      className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-white/10 bg-[#1a1a19] p-5"
+    >
+      {doc.kind === "loading" && <p className="py-10 text-center text-sm text-[#898781]">{doc.label}</p>}
         {doc.kind === "error" && (
           <>
             <p className="text-sm font-semibold" style={{ color: STATUS.serious }}>
@@ -991,7 +998,6 @@ function DocOverlay({
         >
           Close
         </button>
-      </div>
-    </div>
+    </Modal>
   );
 }

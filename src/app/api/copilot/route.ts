@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { Type, type FunctionDeclaration } from "@google/genai";
 import { geminiErrorMessage, getClient, getModel } from "@/lib/gemini";
 import { DEMO_VENUE } from "@/shared/constants";
+import { STAFF_ROLES } from "@/shared/models";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,9 @@ export const dynamic = "force-dynamic";
  * The route is stateless: the client sends chat history + a state snapshot;
  * tool calls are returned to the client, which executes them locally.
  */
+
+/** Most recent chat turns sent to the model — bounds prompt size and cost. */
+const MAX_HISTORY = 12;
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -53,16 +57,7 @@ const TOOL_DECLARATIONS: FunctionDeclaration[] = [
       properties: {
         role: {
           type: Type.STRING,
-          enum: [
-            "catering",
-            "concessions",
-            "stewarding",
-            "security",
-            "medical",
-            "facilities",
-            "traffic",
-            "logistics",
-          ],
+          enum: [...STAFF_ROLES],
         },
         title: { type: Type.STRING },
         detail: { type: Type.STRING, description: "Specific, actionable instruction" },
@@ -99,7 +94,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
-  const history = (body.messages ?? []).slice(-12).filter((m) => m.text?.trim());
+  const history = (body.messages ?? []).slice(-MAX_HISTORY).filter((m) => m.text?.trim());
   if (history.length === 0 || history[history.length - 1].role !== "user") {
     return NextResponse.json({ error: "Last message must be from the user" }, { status: 400 });
   }

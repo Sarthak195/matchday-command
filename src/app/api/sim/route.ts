@@ -14,6 +14,14 @@ export async function POST(req: NextRequest) {
   if (body.type !== "speed" && body.type !== "jump" && body.type !== "restart") {
     return NextResponse.json({ error: "Unknown control type" }, { status: 400 });
   }
+  // Guard the numeric payloads: a non-finite tickMs/toMinute would otherwise
+  // reach the clamp as NaN and feed setInterval(NaN) / an infinite jump loop.
+  if (body.type === "speed" && !Number.isFinite(body.tickMs)) {
+    return NextResponse.json({ error: "tickMs must be a finite number" }, { status: 400 });
+  }
+  if (body.type === "jump" && !Number.isFinite(body.toMinute)) {
+    return NextResponse.json({ error: "toMinute must be a finite number" }, { status: 400 });
+  }
   const live = getLiveMatch();
   live.control(body);
   return NextResponse.json({ ok: true, minute: live.minute });

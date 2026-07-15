@@ -114,7 +114,11 @@ export function Copilot({
         <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: ACCENT }}>
           ✦ Control-room copilot
         </p>
-        <button onClick={() => setOpen(false)} className="text-sm text-[#898781] hover:text-white">
+        <button
+          onClick={() => setOpen(false)}
+          aria-label="Close copilot"
+          className="text-sm text-[#898781] hover:text-white"
+        >
           ✕
         </button>
       </div>
@@ -171,6 +175,7 @@ export function Copilot({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask or command…"
+          aria-label="Message the control-room copilot"
           className="min-w-0 flex-1 rounded border border-white/10 bg-[#0d0d0d] px-2.5 py-1.5 text-sm text-white placeholder:text-[#898781] focus:outline-none"
         />
         <button

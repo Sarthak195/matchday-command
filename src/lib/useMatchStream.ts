@@ -1,7 +1,15 @@
 "use client";
 
-import { useEffect, useReducer } from "react";
-import type { Incident, MatchPhase, StadiumEvent, StreamMessage, TriageResult } from "@/shared/models";
+import { useEffect, useReducer, useState } from "react";
+import { CATCHUP_EVENT_COUNT, DEMO_VENUE } from "@/shared/constants";
+import {
+  nextPhase,
+  type Incident,
+  type MatchPhase,
+  type StadiumEvent,
+  type StreamMessage,
+  type TriageResult,
+} from "@/shared/models";
 
 /** Accumulated match-day state, rebuilt on the client from the shared SSE feed.
  *  Used by the ops, staff, and tournament views via the useMatchStream hook. */
@@ -61,8 +69,8 @@ export function dashReducer(state: DashState, action: DashAction): DashState {
       if (msg.kind === "event") {
         const e = msg.event;
         if (state.events.some((x) => x.id === e.id)) return state;
-        const next: DashState = { ...state, events: [e, ...state.events].slice(0, 250) };
-        if (e.type === "match") next.phase = e.phase === "goal" ? state.phase : e.phase;
+        const next: DashState = { ...state, events: [e, ...state.events].slice(0, CATCHUP_EVENT_COUNT) };
+        if (e.type === "match") next.phase = nextPhase(state.phase, e);
         if (e.type === "crowd-density") {
           next.zones = { ...state.zones, [e.zoneId]: { occupancy: e.occupancy, densityPct: e.densityPct } };
         }
@@ -86,7 +94,7 @@ export function dashReducer(state: DashState, action: DashAction): DashState {
  */
 export function useMatchStream() {
   const [state, dispatch] = useReducer(dashReducer, INITIAL);
-  const [connected, setConnected] = useReducerConnected();
+  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
     const source = new EventSource("/api/stream");
@@ -108,7 +116,16 @@ export function useMatchStream() {
   return { state, dispatch, connected };
 }
 
-/** Tiny boolean reducer kept separate so the connection flag doesn't churn state. */
-function useReducerConnected() {
-  return useReducer((_: boolean, v: boolean) => v, false) as [boolean, (v: boolean) => void];
+/** Highest zone density across the live state (0 before any telemetry). Shared
+ *  by the ops and tournament views so they never disagree on "worst zone". */
+export function worstDensityPct(zones: DashState["zones"]): number {
+  return Math.max(0, ...Object.values(zones).map((z) => z.densityPct));
+}
+
+/** Estimated fans inside = summed occupancy of seating + concourse zones.
+ *  Keyed on the typed `Venue` model, not zone-id string matching. */
+export function insideEstimate(zones: DashState["zones"]): number {
+  return DEMO_VENUE.zones
+    .filter((z) => z.kind === "seating" || z.kind === "concourse")
+    .reduce((sum, z) => sum + (zones[z.id]?.occupancy ?? 0), 0);
 }

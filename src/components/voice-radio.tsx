@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { STATUS } from "@/lib/theme";
 
 /**
@@ -19,25 +19,39 @@ function getRecognizer(): any | null {
 
 export function VoiceRadio({ onTranscript }: { onTranscript: (text: string) => void }) {
   const [status, setStatus] = useState<"idle" | "listening" | "unsupported" | "error">("idle");
+  const recRef = useRef<any>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     if (!getRecognizer()) setStatus("unsupported");
+    // Abort any live mic session if the component unmounts mid-listen (e.g. the
+    // operator navigates away), so its handlers don't setState after unmount.
+    return () => {
+      mountedRef.current = false;
+      recRef.current?.abort?.();
+    };
   }, []);
 
   function start() {
     const SR = getRecognizer();
     if (!SR || status === "listening") return;
     const rec = new SR();
+    recRef.current = rec;
     rec.lang = "en-IN";
     rec.interimResults = false;
     rec.maxAlternatives = 1;
     rec.onresult = (e: any) => {
       const transcript = e.results?.[0]?.[0]?.transcript;
       if (transcript) onTranscript(transcript);
-      setStatus("idle");
+      if (mountedRef.current) setStatus("idle");
     };
-    rec.onerror = () => setStatus("error");
-    rec.onend = () => setStatus((s) => (s === "listening" ? "idle" : s));
+    rec.onerror = () => {
+      if (mountedRef.current) setStatus("error");
+    };
+    rec.onend = () => {
+      recRef.current = null;
+      if (mountedRef.current) setStatus((s) => (s === "listening" ? "idle" : s));
+    };
     setStatus("listening");
     rec.start();
   }
