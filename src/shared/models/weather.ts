@@ -1,13 +1,7 @@
 /** Weather signals that drive equipment/food demand. Sourced from Open-Meteo
  *  (live) or a simulated fallback — the `source` field says which. */
 
-export type WeatherCondition =
-  | "clear"
-  | "clouds"
-  | "rain"
-  | "storm"
-  | "heat"
-  | "cold";
+export type WeatherCondition = "clear" | "clouds" | "rain" | "storm" | "heat" | "cold";
 
 export interface WeatherHorizon {
   /** Human label relative to now, e.g. "+1h", "+2h". */

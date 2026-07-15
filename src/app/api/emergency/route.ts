@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { Type } from "@google/genai";
 import { geminiErrorMessage, generateJson } from "@/lib/gemini";
 import { addTask } from "@/lib/store";
+import { rateLimitResponse } from "@/lib/rate-limit";
 import { DEMO_VENUE } from "@/shared/constants";
 import {
   clampPriority,
@@ -80,6 +81,9 @@ interface GeneratedEvac {
 }
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimitResponse(req, "emergency", { limit: 10, windowMs: 60_000 });
+  if (limited) return limited;
+
   let body: EmergencyRequest;
   try {
     body = (await req.json()) as EmergencyRequest;

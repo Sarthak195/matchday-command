@@ -5,7 +5,8 @@ import { generateJson, isRetryable, modelChain } from "./gemini";
 afterEach(() => vi.unstubAllEnvs());
 
 /** An SDK-style error whose message is the JSON blob Gemini returns. */
-const gErr = (code: number) => new Error(JSON.stringify({ error: { code, message: `err ${code}` } }));
+const gErr = (code: number) =>
+  new Error(JSON.stringify({ error: { code, message: `err ${code}` } }));
 
 /** Fake GoogleGenAI whose per-model outcome is scripted; records call order. */
 function fakeClient(script: Record<string, { text?: string } | Error>) {

@@ -65,14 +65,15 @@ export async function getForecast(): Promise<WeatherForecast> {
     if (!data.current) throw new Error("Open-Meteo: no current block");
 
     const tempC = data.current.temperature_2m;
-    const horizon: WeatherHorizon[] = (data.hourly?.time ?? [])
-      .slice(1, 4)
-      .map((_, i) => ({
-        label: `+${i + 1}h`,
-        tempC: data.hourly!.temperature_2m[i + 1],
-        condition: wmoToCondition(data.hourly!.weather_code[i + 1], data.hourly!.temperature_2m[i + 1]),
-        precipProbPct: data.hourly!.precipitation_probability[i + 1] ?? 0,
-      }));
+    const horizon: WeatherHorizon[] = (data.hourly?.time ?? []).slice(1, 4).map((_, i) => ({
+      label: `+${i + 1}h`,
+      tempC: data.hourly!.temperature_2m[i + 1],
+      condition: wmoToCondition(
+        data.hourly!.weather_code[i + 1],
+        data.hourly!.temperature_2m[i + 1],
+      ),
+      precipProbPct: data.hourly!.precipitation_probability[i + 1] ?? 0,
+    }));
 
     const base = {
       source: "live" as const,

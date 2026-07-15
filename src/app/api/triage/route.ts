@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { Type } from "@google/genai";
 import { geminiErrorMessage, generateJson } from "@/lib/gemini";
+import { rateLimitResponse } from "@/lib/rate-limit";
 import { DEMO_VENUE } from "@/shared/constants";
 import type { StadiumEvent, TriageResult } from "@/shared/models";
 
@@ -46,6 +47,9 @@ const SYSTEM = `You are the duty manager's copilot in the operations control roo
 
 /** POST an incident + its source events; returns a Gemini TriageResult. */
 export async function POST(req: NextRequest) {
+  const limited = rateLimitResponse(req, "triage", { limit: 30, windowMs: 60_000 });
+  if (limited) return limited;
+
   let body: TriageRequest;
   try {
     body = (await req.json()) as TriageRequest;

@@ -164,10 +164,14 @@ export class SimulationEngine {
     const zone = DEMO_VENUE.zones.find((z) => z.id === zoneId);
     if (!zone) return 0;
     if (zone.kind === "gate") {
-      const queued = zone.gateIds.reduce((sum, id) => sum + (this.gates.get(id)?.queueLength ?? 0), 0);
+      const queued = zone.gateIds.reduce(
+        (sum, id) => sum + (this.gates.get(id)?.queueLength ?? 0),
+        0,
+      );
       return queued + Math.round(this.rng() * 200);
     }
-    const concourseShare = this.phase === "halftime" ? 0.42 : this.phase === "gates-open" ? 0.3 : 0.1;
+    const concourseShare =
+      this.phase === "halftime" ? 0.42 : this.phase === "gates-open" ? 0.3 : 0.1;
     const jitter = 0.92 + this.rng() * 0.16;
     if (zone.kind === "concourse") {
       return Math.round(((this.inside * concourseShare) / 2) * jitter);
