@@ -8,3 +8,16 @@ body {
   background: #0d0d0d;
   color: #c3c2b7;
 }
+
+/* Respect users who ask the OS to minimize motion: the density/queue bars
+   animate their width on every telemetry tick, which this disables. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

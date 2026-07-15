@@ -1,4 +1,4 @@
-import { SIM_TICK_MS } from "@/shared/constants";
+import { CATCHUP_EVENT_COUNT, MAX_TICK_MS, MIN_TICK_MS, SIM_TICK_MS } from "@/shared/constants";
 import type { Incident, StadiumEvent, StreamMessage } from "@/shared/models";
 import { IncidentDetector } from "./detector";
 import { SimulationEngine } from "./engine";
@@ -39,7 +39,7 @@ class LiveMatch {
 
   subscribe(send: Send): () => void {
     // Catch-up burst so a late joiner rebuilds the same picture.
-    for (const event of this.eventLog.slice(-250)) send({ kind: "event", event });
+    for (const event of this.eventLog.slice(-CATCHUP_EVENT_COUNT)) send({ kind: "event", event });
     for (const incident of this.incidents) send({ kind: "incident", incident });
     send({ kind: "clock", minute: this.engine.clockMinute });
     this.subscribers.add(send);
@@ -53,7 +53,7 @@ class LiveMatch {
   control(action: SimControl): void {
     switch (action.type) {
       case "speed": {
-        this.tickMs = Math.min(Math.max(action.tickMs, 250), 10000);
+        this.tickMs = Math.min(Math.max(action.tickMs, MIN_TICK_MS), MAX_TICK_MS);
         this.pause();
         this.ensureTicking();
         break;

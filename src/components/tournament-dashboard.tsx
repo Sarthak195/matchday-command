@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import { DENSITY_ALERT_PCT } from "@/shared/constants";
 import { ACCENT, PHASE_LABEL, STATUS, densityState } from "@/lib/theme";
 import { TOURNAMENT_VENUES, venueSummary, type VenueSummary } from "@/lib/tournament";
-import { useMatchStream } from "@/lib/useMatchStream";
+import { insideEstimate, useMatchStream, worstDensityPct } from "@/lib/useMatchStream";
 import { Panel, StatRow } from "@/components/primitives";
 
 /**
@@ -19,10 +20,8 @@ export default function TournamentDashboard() {
     return TOURNAMENT_VENUES.map((v) => {
       if (!v.live) return venueSummary(v, state.minute);
       // The live venue reports real numbers from the shared match.
-      const worst = Math.max(0, ...Object.values(state.zones).map((z) => z.densityPct));
-      const inside = Object.entries(state.zones)
-        .filter(([id]) => id.startsWith("concourse") || id === "seating-bowl")
-        .reduce((sum, [, z]) => sum + z.occupancy, 0);
+      const worst = worstDensityPct(state.zones);
+      const inside = insideEstimate(state.zones);
       return {
         venueId: v.id,
         localMinute: state.minute,
@@ -32,7 +31,7 @@ export default function TournamentDashboard() {
         openIncidents: state.incidents.filter((i) => i.status !== "resolved").length,
         insideEst: inside,
         statusLine:
-          worst >= 85
+          worst >= DENSITY_ALERT_PCT
             ? "Concourse pressure — see ops room"
             : state.incidents.some((i) => i.status === "open")
               ? "Open incidents — ops engaged"
@@ -55,12 +54,17 @@ export default function TournamentDashboard() {
       <header className="border-b border-white/10 bg-[#1a1a19]">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
+            <h1 className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
               MatchDay Command · Tournament
-            </p>
+            </h1>
             <p className="text-xs text-[#898781]">Match day 4 · {TOURNAMENT_VENUES.length} venues · Madhya Pradesh cluster</p>
           </div>
-          <span className="text-xs" style={{ color: connected ? STATUS.good : STATUS.serious }}>
+          <span
+            role="status"
+            aria-live="polite"
+            className="text-xs"
+            style={{ color: connected ? STATUS.good : STATUS.serious }}
+          >
             {connected ? "● Live" : "○ Reconnecting"}
           </span>
           <div className="ml-auto">

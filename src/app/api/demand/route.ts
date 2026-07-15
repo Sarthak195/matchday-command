@@ -2,41 +2,18 @@ import { NextResponse, type NextRequest } from "next/server";
 import { Type } from "@google/genai";
 import { geminiErrorMessage, generateJson } from "@/lib/gemini";
 import { DEMO_VENUE } from "@/shared/constants";
-import type {
-  DemandLine,
-  DemandPlan,
-  StaffRole,
-  StaffTask,
-  SupplyItem,
-  WeatherForecast,
+import {
+  clampPriority,
+  STAFF_ROLES,
+  SUPPLY_ITEMS,
+  type DemandLine,
+  type DemandPlan,
+  type StaffTask,
+  type SupplyItem,
+  type WeatherForecast,
 } from "@/shared/models";
 
 export const dynamic = "force-dynamic";
-
-const SUPPLY_ITEMS: SupplyItem[] = [
-  "umbrella",
-  "poncho",
-  "bottled-water",
-  "cold-drink",
-  "hot-beverage",
-  "hot-food",
-  "cold-food",
-  "handheld-fan",
-  "blanket",
-  "ice",
-  "energy-drink",
-];
-
-const STAFF_ROLES: StaffRole[] = [
-  "catering",
-  "concessions",
-  "stewarding",
-  "security",
-  "medical",
-  "facilities",
-  "traffic",
-  "logistics",
-];
 
 /** Opening stock on hand, so the model computes real shortfalls (gap). */
 const DEFAULT_STOCK: Record<SupplyItem, number> = {
@@ -71,7 +48,7 @@ const DEMAND_SCHEMA = {
       items: {
         type: Type.OBJECT,
         properties: {
-          item: { type: Type.STRING, enum: SUPPLY_ITEMS },
+          item: { type: Type.STRING, enum: [...SUPPLY_ITEMS] },
           predictedUnits: { type: Type.INTEGER },
           currentStock: { type: Type.INTEGER },
           driver: { type: Type.STRING },
@@ -85,7 +62,7 @@ const DEMAND_SCHEMA = {
       items: {
         type: Type.OBJECT,
         properties: {
-          role: { type: Type.STRING, enum: STAFF_ROLES },
+          role: { type: Type.STRING, enum: [...STAFF_ROLES] },
           title: { type: Type.STRING },
           detail: { type: Type.STRING },
           priority: { type: Type.INTEGER },
@@ -116,10 +93,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  const attendance = Number(body.attendance);
+  if (!Number.isFinite(attendance)) {
+    return NextResponse.json({ error: "attendance must be a number" }, { status: 400 });
+  }
+
   const stock = { ...DEFAULT_STOCK, ...(body.currentStock ?? {}) };
   const prompt = [
     `Match clock: minute ${body.minute} (kickoff at 60), phase ${body.phase}.`,
-    `Expected attendance: ${body.attendance.toLocaleString()}.`,
+    `Expected attendance: ${attendance.toLocaleString()}.`,
     "",
     "Weather forecast:",
     JSON.stringify(body.weather, null, 2),
@@ -144,6 +126,7 @@ export async function POST(req: NextRequest) {
     };
     const tasks: StaffTask[] = gen.prepTasks.map((t, i) => ({
       ...t,
+      priority: clampPriority(t.priority),
       id: `task-dmd-${body.minute}-${i}`,
       createdAtMinute: body.minute,
       origin: "demand",

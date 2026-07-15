@@ -60,6 +60,10 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
+  // Normalize the client-supplied collections so a malformed body can't throw a
+  // TypeError mid-handler (which would surface as a misleading Gemini-shaped 500).
+  body.incidents = Array.isArray(body.incidents) ? body.incidents : [];
+  body.recentEvents = Array.isArray(body.recentEvents) ? body.recentEvents : [];
   const isHandover = req.nextUrl.searchParams.get("type") === "handover";
 
   try {

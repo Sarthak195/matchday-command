@@ -1,19 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { addTask, listTasks } from "@/lib/store";
-import type { StaffRole, TaskOrigin } from "@/shared/models";
+import { clampPriority, STAFF_ROLES, type StaffRole, type TaskOrigin } from "@/shared/models";
 
 export const dynamic = "force-dynamic";
 
-const ROLES: StaffRole[] = [
-  "catering",
-  "concessions",
-  "stewarding",
-  "security",
-  "medical",
-  "facilities",
-  "traffic",
-  "logistics",
-];
+/** Reject oversized free-text so the in-memory store can't be bloated. */
+const MAX_FIELD_LEN = 500;
 
 const ORIGINS: TaskOrigin[] = [
   "incident",
@@ -47,10 +39,16 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
-  if (!ROLES.includes(body.role) || !body.title || !body.detail) {
+  if (!STAFF_ROLES.includes(body.role) || !body.title || !body.detail) {
     return NextResponse.json({ error: "role, title, and detail are required" }, { status: 400 });
   }
-  const priority = Math.min(3, Math.max(1, Math.round(body.priority ?? 2))) as 1 | 2 | 3;
+  if (body.title.length > MAX_FIELD_LEN || body.detail.length > MAX_FIELD_LEN) {
+    return NextResponse.json(
+      { error: `title and detail must be under ${MAX_FIELD_LEN} characters` },
+      { status: 400 },
+    );
+  }
+  const priority = clampPriority(body.priority ?? 2);
   const task = addTask({
     role: body.role,
     title: body.title,

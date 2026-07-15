@@ -14,8 +14,17 @@ export const DENSITY_CRITICAL_PCT = 92;
 /** Gate queue length at which a gate incident is auto-opened. */
 export const QUEUE_ALERT_LENGTH = 300;
 
-/** Simulation pacing: one simulated minute per real tick. */
+/** Simulation pacing: one simulated minute per real tick (the "1×" speed). */
 export const SIM_TICK_MS = 2000;
+/** The "4×" fast-forward pacing offered in the sim-speed control. */
+export const SIM_TICK_FAST_MS = 500;
+/** Bounds the speed control clamps tick pacing to (ms per simulated minute). */
+export const MIN_TICK_MS = 250;
+export const MAX_TICK_MS = 10000;
+/** Recent events replayed to a late joiner as a catch-up burst, and the number
+ *  the client keeps in memory. Kept ≤ the server's event-log cap so the burst
+ *  never asks for more history than is retained. */
+export const CATCHUP_EVENT_COUNT = 250;
 /** Kickoff happens this many simulated minutes after gates open. */
 export const KICKOFF_MINUTE = 60;
 /** Fans expected through the gates for the demo match (~88% of capacity). */

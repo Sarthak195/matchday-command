@@ -85,6 +85,11 @@ export function VenueMap({ traffic }: { traffic: TrafficState }) {
       .catch(() => !cancelled && setMode("sim"));
     return () => {
       cancelled = true;
+      // Detach the drawn overlays so they don't leak when the map unmounts.
+      overlaysRef.current.forEach((o) => o.setMap?.(null));
+      overlaysRef.current = [];
+      mapRef.current = null;
+      mapsRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

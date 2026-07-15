@@ -12,7 +12,7 @@ import type {
   TaskStatus,
   WeatherForecast,
 } from "@/shared/models";
-import { ACCENT, INK, PHASE_LABEL, STATUS } from "@/lib/theme";
+import { ACCENT, CONGESTION_COLOR, INK, PHASE_LABEL, STATUS } from "@/lib/theme";
 import { trafficAt } from "@/lib/traffic/model";
 import { useMatchStream } from "@/lib/useMatchStream";
 import { Panel, Tag } from "@/components/primitives";
@@ -94,10 +94,16 @@ export default function StaffDashboard() {
 
   // Live weather once on mount.
   useEffect(() => {
+    let cancelled = false;
     fetch("/api/weather")
       .then((r) => r.json())
-      .then((f: WeatherForecast) => setForecast(f))
+      .then((f: WeatherForecast) => {
+        if (!cancelled) setForecast(f);
+      })
       .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function fetchDemand() {
@@ -232,9 +238,9 @@ export default function StaffDashboard() {
       <header className="border-b border-white/10 bg-[#1a1a19]">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
+            <h1 className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: ACCENT }}>
               MatchDay Command · Staff console
-            </p>
+            </h1>
             <p className="text-xs text-[#898781]">
               {DEMO_VENUE.name} · your tasks for this shift
             </p>
@@ -244,7 +250,12 @@ export default function StaffDashboard() {
             <span className="rounded-full border border-white/10 px-2.5 py-0.5 text-xs">
               {PHASE_LABEL[state.phase]}
             </span>
-            <span className="text-xs" style={{ color: connected ? STATUS.good : STATUS.serious }}>
+            <span
+              role="status"
+              aria-live="polite"
+              className="text-xs"
+              style={{ color: connected ? STATUS.good : STATUS.serious }}
+            >
               {connected ? "● Live" : "○ Reconnecting"}
             </span>
           </div>
@@ -346,7 +357,7 @@ export default function StaffDashboard() {
               {traffic.corridors.map((c) => (
                 <li key={c.id} className="flex items-center justify-between">
                   <span className="text-[#c3c2b7]">{c.name}</span>
-                  <span className="tabular-nums" style={{ color: congestionColor(c.congestion) }}>
+                  <span className="tabular-nums" style={{ color: CONGESTION_COLOR[c.congestion] }}>
                     {c.congestion} · {c.etaMin}′
                   </span>
                 </li>
@@ -389,16 +400,6 @@ export default function StaffDashboard() {
       </footer>
     </div>
   );
-}
-
-function congestionColor(level: string): string {
-  return level === "severe"
-    ? STATUS.critical
-    : level === "heavy"
-      ? STATUS.serious
-      : level === "moderate"
-        ? STATUS.warning
-        : STATUS.good;
 }
 
 const ORIGIN_COLOR: Record<StaffTask["origin"], string> = {

@@ -34,8 +34,9 @@ export function geminiErrorMessage(err: unknown): string {
 
 /**
  * Ask Gemini for a JSON object matching `schema` (Gemini structured-output schema,
- * built with the `Type` enum from @google/genai). All AI calls in the app go
- * through here so model choice, error handling, and logging live in one place.
+ * built with the `Type` enum from @google/genai). Every AI call in the app goes
+ * through here so model choice and the structured-output contract live in one
+ * place; callers format errors for the UI via `geminiErrorMessage`.
  */
 export async function generateJson<T>(opts: {
   system: string;
@@ -56,5 +57,9 @@ export async function generateJson<T>(opts: {
   if (!text) {
     throw new Error("Gemini returned an empty response");
   }
-  return JSON.parse(text) as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error("Gemini returned malformed JSON");
+  }
 }
