@@ -12,6 +12,16 @@ Running 104 World Cup matches across 16 stadiums pushed real tournaments toward 
 
 The app has **three views on one shared live match**: the **ops control room** (`/`), the **staff console** (`/staff`), and the **tournament supervisor** (`/tournament`). One server-side simulation broadcasts to every client — all screens show the same clock and story, and sim controls (speed / next-beat / restart) are global.
 
+## Screenshots
+
+| Ops control room | Emergency evacuation mode |
+|---|---|
+| ![Ops control room — zone density, live Google-traffic map, incident queue with AI triage](docs/screenshots/ops-dashboard.png) | ![Emergency mode — AI-written evacuation plan with PA announcement and sequenced zone orders](docs/screenshots/emergency-evacuation.png) |
+
+The staff console (`/staff`) — a role-grouped task board fed by incidents, weather, traffic, and the AI demand plan:
+
+![Staff console task board](docs/screenshots/staff-console.png)
+
 ## What it does
 
 1. **Live signal feed** — a match-day simulator streams gate throughput, crowd density, steward radio logs, medical calls, and weather over SSE. (Simulated data means the demo never depends on hardware or third-party APIs.)

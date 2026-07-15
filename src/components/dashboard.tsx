@@ -175,15 +175,18 @@ export default function Dashboard() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Generation failed");
+      // Only surface the result if the operator hasn't closed the overlay (or
+      // opened something else) while the doc was being written.
       if (type === "briefing") {
         setBriefing(data as OpsBriefing);
-        setDoc({ kind: "briefing", data });
+        setDoc((prev) => (prev?.kind === "loading" ? { kind: "briefing", data } : prev));
       } else {
         setHandover(data as HandoverReport);
-        setDoc({ kind: "handover", data });
+        setDoc((prev) => (prev?.kind === "loading" ? { kind: "handover", data } : prev));
       }
     } catch (err) {
-      setDoc({ kind: "error", message: err instanceof Error ? err.message : "Generation failed" });
+      const message = err instanceof Error ? err.message : "Generation failed";
+      setDoc((prev) => (prev?.kind === "loading" ? { kind: "error", message } : prev));
     }
   }
 
